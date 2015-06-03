@@ -21,32 +21,23 @@
 
 #define FRMLEN 260  /* | 1byte | 1byte | 0~255byte | 2byte | */
 
-struct slv_frm_para {
+struct frm_para {
 	unsigned int slvID;
 	unsigned int len;
 	unsigned char fc;
 	unsigned int straddr;
-	unsigned int act;			// The status to write (in FC 0x05)
-	unsigned int val;			// The value of write (in FC 0x06) 
+	unsigned int act;			// The status to write (in FC 0x05/0x06) 
 };
 
-struct mstr_frm_para{
-	unsigned int slvID;
-	unsigned int len;
-	unsigned char fc;
-	unsigned int straddr;
-	unsigned int act;
-};
-
-int analz_query(unsigned char *rx_buf, struct slv_frm_para *sfpara);
-int analz_respond(unsigned char *rx_buf, struct mstr_frm_para *mfpara, int rlen);
+int analz_query(unsigned char *rx_buf, struct frm_para *sfpara);
+int analz_respond(unsigned char *rx_buf, struct frm_para *mfpara, int rlen);
 
 void build_rtu_frm(unsigned char *dst_buf, unsigned char *src_buf, unsigned char lenth);
-int build_query(unsigned char *tx_buf, struct mstr_frm_para *mfpara);
-int build_resp_excp(unsigned char slvID, unsigned int fc, unsigned int excp_code, unsigned char *tx_buf);
-int build_resp_read_status(unsigned int slvID, unsigned char *tx_buf, unsigned int straddr, unsigned char fc, int len);
-int build_resp_read_regs(unsigned int slvID, unsigned char *tx_buf, unsigned int straddr, unsigned char fc, int num_regs);
-int build_resp_set_single(unsigned int slvID, unsigned char *tx_buf, unsigned int straddr, unsigned char fc, unsigned int act);
+int build_query(unsigned char *tx_buf, struct frm_para *mfpara);
+int build_resp_excp(struct frm_para *sfpara, unsigned int excp_code, unsigned char *tx_buf);
+int build_resp_read_status(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc);
+int build_resp_read_regs(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc);
+int build_resp_set_single(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc);
 
 #endif
 

@@ -14,7 +14,7 @@
 
 #define RECVLEN 8
 
-int _set_para(struct mstr_frm_para *mfpara)
+int _set_para(struct frm_para *mfpara)
 {
 	int cmd;
 	unsigned int straddr;
@@ -106,7 +106,7 @@ int main(int argc, char **argv)
 	struct timeval tv;
 	unsigned char tx_buf[FRMLEN];
 	unsigned char rx_buf[FRMLEN];
-	struct mstr_frm_para mfpara;
+	struct frm_para mfpara;
 
 	if(argc < 2){
 		printf("./mbus_mstr [PATH]\n");

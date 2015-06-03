@@ -3,7 +3,7 @@
 
 #include "mbus.h"
 
-int analz_query(unsigned char *rx_buf, struct slv_frm_para *sfpara)
+int analz_query(unsigned char *rx_buf, struct frm_para *sfpara)
 {
 	unsigned int qslvID;
 	unsigned int rslvID;
@@ -30,21 +30,24 @@ int analz_query(unsigned char *rx_buf, struct slv_frm_para *sfpara)
 
 	if(rfc != qfc){
 		printf("<Slave mode> Function code improper\n");
-//		build_excp
 		return -2;
 	}
 	
 	if(!(rfc ^ FORCESIGLEREGS)){				// FC = 0x05, get the status to write(on/off)
-		sfpara->act = qact;	
+		if(!qact || qact == 255){
+			sfpara->act = qact;
+		}else{
+			printf("<Slave mode> Query set the status to write fuckin worng\n");
+			return -2;		// the other fuckin respond excp code?
+		}
 	}else if(!(rfc ^ PRESETEXCPSTATUS)){		// FC = 0x06, get the value to write
-		sfpara->val = qact;
+		sfpara->act = qact;
 	}else{
 		if(qstraddr + qact <= rstraddr + rlen){	// Query addr+shift len must smaller than the contain we set in addr+shift len
 			sfpara->straddr = qstraddr;
 			sfpara->len = qact;
 		}else{
 			printf("<Slave mode> The address have no contain\n");
-//			build_excp
 			return -3;
 		}
 	}
@@ -52,7 +55,7 @@ int analz_query(unsigned char *rx_buf, struct slv_frm_para *sfpara)
 	return 0;
 }
 
-int analz_respond(unsigned char *rx_buf, struct mstr_frm_para *mfpara, int rlen)
+int analz_respond(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
 {
 	int i;
 	int act_tmp;
@@ -157,7 +160,7 @@ int analz_respond(unsigned char *rx_buf, struct mstr_frm_para *mfpara, int rlen)
 /*
  * build modbus master mode Query
  */
-int build_query(unsigned char *tx_buf, struct mstr_frm_para *mfpara)
+int build_query(unsigned char *tx_buf, struct frm_para *mfpara)
 {
 	int srclen;
 	unsigned char src[FRMLEN];
@@ -214,10 +217,15 @@ int build_query(unsigned char *tx_buf, struct mstr_frm_para *mfpara)
 	return srclen;
 }
 
-int build_resp_excp(unsigned char slvID, unsigned int fc, unsigned int excp_code, unsigned char *tx_buf)
+int build_resp_excp(struct frm_para *sfpara, unsigned int excp_code, unsigned char *tx_buf)
 {
-    unsigned char src[FRMLEN];
     int src_num;
+	unsigned int slvID;
+	unsigned char fc;
+	unsigned char src[FRMLEN];
+	
+	slvID = sfpara->slvID;
+	fc = sfpara->fc;
 
     src[0] = slvID;
     src[1] = fc | EXCPTIONCODE;
@@ -234,22 +242,27 @@ int build_resp_excp(unsigned char slvID, unsigned int fc, unsigned int excp_code
 /* 
  * FC 0x01 Read Coil Status respond / FC 0x02 Read Input Status
  */
-int build_resp_read_status(unsigned int slvID, unsigned char *tx_buf, unsigned int straddr, unsigned char fc, int len)
+int build_resp_read_status(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc)
 {
     int i;
 	int byte;
 	int res;
     int src_len;
+	unsigned int slvID;
+	unsigned int straddr;
+	unsigned int len;	
     unsigned char src[FRMLEN];
     
+	slvID = sfpara->slvID;
+	straddr = sfpara->straddr;
+	len = sfpara->len; 
 	res = len % 8;
 	byte = len / 8;	
 	if(res > 0){
 		byte += 1;
 	}
-
     src_len = byte + 3;
-    /* init data, fill in slave addr & function code ##Start Addr */
+
     src[0] = slvID;           		// Slave ID
 	src[1] = fc;					// Function code
 	src[2] = byte & 0xff;       	// The number of data byte to follow
@@ -272,18 +285,24 @@ int build_resp_read_status(unsigned int slvID, unsigned char *tx_buf, unsigned i
 /* 
  * FC 0x03 Read Holding Registers respond / FC 0x04 Read Input Registers respond
  */
-int build_resp_read_regs(unsigned int slvID, unsigned char *tx_buf, unsigned int straddr, unsigned char fc, int num_regs)
+int build_resp_read_regs(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc)
 {
     int i;
     int byte;
     int src_len;
+	unsigned int slvID;
+	unsigned int straddr;
+	unsigned int num_regs;
     unsigned char src[FRMLEN];
-    
+	
+	slvID = sfpara->slvID;
+    straddr = sfpara->straddr;
+	num_regs = sfpara->len;
 	byte = num_regs * 2;			// num_regs * 2byte
     src_len = byte + 3;
-    /* init data, fill in slave addr & function code ##Start Addr */
+
     src[0] = slvID;                 // Slave ID
-    src[1] = fc;       // Function code
+    src[1] = fc;       				// Function code
     src[2] = byte & 0xff;           // The number of data byte to follow
     for(i = 3; i < src_len; i++){   
 //		src[i] = (straddr%229 + i) & 0xff;	// The Holding Regs addr, we set random value (0 ~ 240)
@@ -304,10 +323,17 @@ int build_resp_read_regs(unsigned int slvID, unsigned char *tx_buf, unsigned int
 /*
  * FC 0x05 Force Single Coli respond / FC 0x06 Preset Single Register respond
  */
-int build_resp_set_single(unsigned int slvID, unsigned char *tx_buf, unsigned int straddr, unsigned char fc, unsigned int act)
+int build_resp_set_single(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc)
 {
     int src_len;
+	unsigned int slvID;
+	unsigned int straddr;
+	unsigned int act;
     unsigned char src[FRMLEN];
+	
+	slvID = sfpara->slvID;
+	straddr = sfpara->straddr;
+	act = sfpara->act;
     
     /* init data, fill in slave addr & function code ##Start Addr */
     src[0] = slvID;                 // Slave ID

@@ -14,7 +14,7 @@
 
 #define RECVLEN 8
 
-int _set_para(struct slv_frm_para *sfpara)
+int _set_para(struct frm_para *sfpara)
 {
 	int cmd;
 	unsigned int straddr;	
@@ -61,29 +61,29 @@ int _set_para(struct slv_frm_para *sfpara)
 		
 	return 0;
 }
-int _choose_resp_frm(unsigned char *tx_buf, struct slv_frm_para *sfpara, int ret, int *lock)
+int _choose_resp_frm(unsigned char *tx_buf, struct frm_para *sfpara, int ret, int *lock)
 {
 	int txlen;
 
 	if(ret == 0){
 		switch(sfpara->fc){
 			case READCOILSTATUS:
-				txlen = build_resp_read_status(sfpara->slvID, tx_buf, sfpara->straddr, READCOILSTATUS, sfpara->len);
+				txlen = build_resp_read_status(sfpara, tx_buf, READCOILSTATUS);
 				break;
 			case READINPUTSTATUS:
-				txlen = build_resp_read_status(sfpara->slvID, tx_buf, sfpara->straddr, READINPUTSTATUS, sfpara->len);
+				txlen = build_resp_read_status(sfpara, tx_buf, READINPUTSTATUS);
 				break;
 			case READHOLDINGREGS:
-				txlen = build_resp_read_regs(sfpara->slvID, tx_buf, sfpara->straddr, READHOLDINGREGS, sfpara->len);
+				txlen = build_resp_read_regs(sfpara, tx_buf, READHOLDINGREGS);
 				break;
 			case READINPUTREGS:
-				txlen = build_resp_read_regs(sfpara->slvID, tx_buf, sfpara->straddr, READINPUTREGS, sfpara->len);
+				txlen = build_resp_read_regs(sfpara, tx_buf, READINPUTREGS);
 				break;
 			case FORCESIGLEREGS:
-				txlen = build_resp_set_single(sfpara->slvID, tx_buf, sfpara->straddr, FORCESIGLEREGS, sfpara->act);
+				txlen = build_resp_set_single(sfpara, tx_buf, FORCESIGLEREGS);
 				break;
 			case PRESETEXCPSTATUS:
-				txlen = build_resp_set_single(sfpara->slvID, tx_buf, sfpara->straddr, PRESETEXCPSTATUS, sfpara->val);
+				txlen = build_resp_set_single(sfpara, tx_buf, PRESETEXCPSTATUS);
 				break;
 			default:
 				printf("<Slave mode> unknow Function code : %x\n", sfpara->fc);
@@ -94,9 +94,9 @@ int _choose_resp_frm(unsigned char *tx_buf, struct slv_frm_para *sfpara, int ret
 		*lock = 0;
 		return -1;
 	}else if(ret == -2){
-		txlen = build_resp_excp(sfpara->slvID, sfpara->fc, EXCPILLGFUNC, tx_buf);
+		txlen = build_resp_excp(sfpara, EXCPILLGFUNC, tx_buf);
 	}else if(ret == -3){
-		txlen = build_resp_excp(sfpara->slvID, sfpara->fc, EXCPILLGDATAADDR, tx_buf);
+		txlen = build_resp_excp(sfpara, EXCPILLGDATAADDR, tx_buf);
 	}
 	return txlen;
 }
@@ -147,7 +147,7 @@ int main(int argc, char **argv)
 	struct timeval tv;
 	unsigned char tx_buf[FRMLEN];
 	unsigned char rx_buf[FRMLEN];
-	struct slv_frm_para sfpara;	
+	struct frm_para sfpara;	
 	
 	if(argc < 2){
 		printf("In slave mode usage : ");
