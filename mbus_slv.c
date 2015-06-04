@@ -96,6 +96,8 @@ int _choose_resp_frm(unsigned char *tx_buf, struct frm_para *sfpara, int ret, in
 	}else if(ret == -2){
 		txlen = build_resp_excp(sfpara, EXCPILLGFUNC, tx_buf);
 	}else if(ret == -3){
+		txlen = build_resp_excp(sfpara, EXCPILLGDATAVAL, tx_buf);
+	}else if(ret == -4){
 		txlen = build_resp_excp(sfpara, EXCPILLGDATAADDR, tx_buf);
 	}
 	return txlen;

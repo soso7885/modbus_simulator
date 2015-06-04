@@ -38,7 +38,7 @@ int analz_query(unsigned char *rx_buf, struct frm_para *sfpara)
 			sfpara->act = qact;
 		}else{
 			printf("<Slave mode> Query set the status to write fuckin worng\n");
-			return -2;		// the other fuckin respond excp code?
+			return -3;							// the other fuckin respond excp code?
 		}
 	}else if(!(rfc ^ PRESETEXCPSTATUS)){		// FC = 0x06, get the value to write
 		sfpara->act = qact;
@@ -48,7 +48,7 @@ int analz_query(unsigned char *rx_buf, struct frm_para *sfpara)
 			sfpara->len = qact;
 		}else{
 			printf("<Slave mode> The address have no contain\n");
-			return -3;
+			return -4;
 		}
 	}
 	
@@ -249,12 +249,12 @@ int build_resp_read_status(struct frm_para *sfpara, unsigned char *tx_buf, unsig
 	int res;
     int src_len;
 	unsigned int slvID;
-	unsigned int straddr;
+//	unsigned int straddr;
 	unsigned int len;	
     unsigned char src[FRMLEN];
     
 	slvID = sfpara->slvID;
-	straddr = sfpara->straddr;
+//	straddr = sfpara->straddr;
 	len = sfpara->len; 
 	res = len % 8;
 	byte = len / 8;	
@@ -291,19 +291,19 @@ int build_resp_read_regs(struct frm_para *sfpara, unsigned char *tx_buf, unsigne
     int byte;
     int src_len;
 	unsigned int slvID;
-	unsigned int straddr;
+//	unsigned int straddr;
 	unsigned int num_regs;
     unsigned char src[FRMLEN];
-	
+
 	slvID = sfpara->slvID;
-    straddr = sfpara->straddr;
+//	straddr = sfpara->straddr;
 	num_regs = sfpara->len;
 	byte = num_regs * 2;			// num_regs * 2byte
-    src_len = byte + 3;
+	src_len = byte + 3;
 
-    src[0] = slvID;                 // Slave ID
-    src[1] = fc;       				// Function code
-    src[2] = byte & 0xff;           // The number of data byte to follow
+	src[0] = slvID;                 // Slave ID
+	src[1] = fc;       				// Function code
+	src[2] = byte & 0xff;           // The number of data byte to follow
     for(i = 3; i < src_len; i++){   
 //		src[i] = (straddr%229 + i) & 0xff;	// The Holding Regs addr, we set random value (0 ~ 240)
 		src[i] = 0;

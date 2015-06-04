@@ -95,6 +95,7 @@ int main(int argc, char **argv)
 	int i;
 	int fd;
 	int retval;
+	int ret;
 	int wlen;
 	int rlen;
 	int txlen;
@@ -161,15 +162,18 @@ int main(int argc, char **argv)
 				continue;
 			}	
 			rlen = read(fd, rx_buf, FRMLEN);
-
+/*
 			printf("<Master mode> Recv respond :");
 			// check Recv 
 			for(i = 0; i < rlen; i++){
 				printf(" %x |", rx_buf[i]);
 			}
 			printf(" rlen = %d\n", rlen);
-
-			analz_respond(rx_buf, &mfpara, rlen);
+*/
+			ret = analz_respond(rx_buf, &mfpara, rlen);
+			if(ret == -1){
+				continue;
+			}
 			lock = 0;
 		}
 		/* Send Query */
