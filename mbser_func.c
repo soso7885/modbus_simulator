@@ -3,7 +3,7 @@
 
 #include "mbus.h"
 
-int analz_query(unsigned char *rx_buf, struct frm_para *sfpara)
+int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara)
 {
 	unsigned int qslvID;
 	unsigned int rslvID;
@@ -23,7 +23,7 @@ int analz_query(unsigned char *rx_buf, struct frm_para *sfpara)
 	rstraddr = sfpara->straddr;
 	rlen = sfpara->len;
 
-	if(rslvID != qslvID){								// check master & slave mode slvId
+	if(rslvID != qslvID){						// check master & slave mode slvId
 		printf("<Slave mode> Slave ID improper, slaveID from query : %d | slaveID from setting : %d\n", qslvID, rslvID);
 		return -1;
 	}
@@ -50,12 +50,12 @@ int analz_query(unsigned char *rx_buf, struct frm_para *sfpara)
 			printf("<Slave mode> The address have no contain\n");
 			return -4;
 		}
-	}
+	 }
 	
 	return 0;
 }
 
-int analz_respond(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
+int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
 {
 	int i;
 	int act_tmp;
@@ -157,10 +157,11 @@ int analz_respond(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
 	
 	return 0;
 }
+
 /*
- * build modbus master mode Query
+ * build modbus serial master mode Query
  */
-int build_query(unsigned char *tx_buf, struct frm_para *mfpara)
+int ser_build_query(unsigned char *tx_buf, struct frm_para *mfpara)
 {
 	int srclen;
 	unsigned char src[FRMLEN];
@@ -216,8 +217,10 @@ int build_query(unsigned char *tx_buf, struct frm_para *mfpara)
 	
 	return srclen;
 }
-
-int build_resp_excp(struct frm_para *sfpara, unsigned int excp_code, unsigned char *tx_buf)
+/* 
+ * build modbus serial respond exception
+ */
+int ser_build_resp_excp(struct frm_para *sfpara, unsigned int excp_code, unsigned char *tx_buf)
 {
     int src_num;
 	unsigned int slvID;
@@ -242,7 +245,7 @@ int build_resp_excp(struct frm_para *sfpara, unsigned int excp_code, unsigned ch
 /* 
  * FC 0x01 Read Coil Status respond / FC 0x02 Read Input Status
  */
-int build_resp_read_status(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc)
+int ser_build_resp_read_status(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc)
 {
     int i;
 	int byte;
@@ -285,7 +288,7 @@ int build_resp_read_status(struct frm_para *sfpara, unsigned char *tx_buf, unsig
 /* 
  * FC 0x03 Read Holding Registers respond / FC 0x04 Read Input Registers respond
  */
-int build_resp_read_regs(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc)
+int ser_build_resp_read_regs(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc)
 {
     int i;
     int byte;
@@ -323,7 +326,7 @@ int build_resp_read_regs(struct frm_para *sfpara, unsigned char *tx_buf, unsigne
 /*
  * FC 0x05 Force Single Coli respond / FC 0x06 Preset Single Register respond
  */
-int build_resp_set_single(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc)
+int ser_build_resp_set_single(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc)
 {
     int src_len;
 	unsigned int slvID;

@@ -99,7 +99,6 @@ int main(int argc, char **argv)
 	int wlen;
 	int rlen;
 	int txlen;
-	int lock = 0;
 	char *path;
 	fd_set wfds;
 	fd_set rfds;
@@ -107,6 +106,7 @@ int main(int argc, char **argv)
 	struct timeval tv;
 	unsigned char tx_buf[FRMLEN];
 	unsigned char rx_buf[FRMLEN];
+	int lsr;
 	struct frm_para mfpara;
 
 	if(argc < 2){
@@ -134,13 +134,13 @@ int main(int argc, char **argv)
 		return -1;
 	} 
 
-	txlen = build_query(tx_buf, &mfpara);	// pack Query
+	txlen = ser_build_query(tx_buf, &mfpara);	// pack Query
 	/* Check Send */
 	for(i = 0; i < txlen; i++){
 		printf(" %x |", tx_buf[i]);
     }
 	printf(" ## txlen = %d ##\n", txlen);
-	
+
 	do{
 		FD_ZERO(&wfds);
 		FD_ZERO(&rfds);
@@ -150,17 +150,19 @@ int main(int argc, char **argv)
 		tv.tv_usec = 0;
 
 		retval = select(fd+1, &rfds, &wfds, 0, &tv);
-		if(retval == 0){
+		if(retval <= 0){
+			wlen = 0;
 			printf("<Master mode> Select nothing\n");
 			continue;
 		}
 		/* Recv Respond */
-		if(FD_ISSET(fd, &rfds)){
-			if(!lock){
+		if(FD_ISSET(fd, &rfds) && lsr && wlen != 0){
+/*			if(!lsr){
 				printf("<Master mode> Waiting for respond...\n");
 				sleep(3);
 				continue;
 			}	
+*/
 			rlen = read(fd, rx_buf, FRMLEN);
 /*
 			printf("<Master mode> Recv respond :");
@@ -170,22 +172,29 @@ int main(int argc, char **argv)
 			}
 			printf(" rlen = %d\n", rlen);
 */
-			ret = analz_respond(rx_buf, &mfpara, rlen);
+			wlen = 0;
+			ret = ser_resp_parser(rx_buf, &mfpara, rlen);
 			if(ret == -1){
 				continue;
 			}
-			lock = 0;
 		}
 		/* Send Query */
 		if(FD_ISSET(fd, &wfds)){
 			wlen = write(fd, tx_buf, txlen);
+			ret = ioctl(fd, TIOCSERGETLSR, &lsr);
+			if(ret == -1){ // if device not support TIOCSERGETLSR, what should I do?
+				printf("TIOCSERGETLSR : %s\n", strerror(errno));
+				sleep(2);
+			}else{
+				while(lsr == 0){
+					ret = ioctl(fd, TIOCSERGETLSR, &lsr);
+				}
+			}
 			if(txlen != wlen){
 				printf("<Master mode> write query incomplete !!\n");
 				continue;
 			}
-			lock = 1;
 		}
-		sleep(2);
 	}while(1);
 	
 	if(fd == -1){

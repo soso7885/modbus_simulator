@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <asm-generic/termbits.h>
 
+
 #include "mbus.h"
 
 #define RECVLEN 8
@@ -68,25 +69,25 @@ int _choose_resp_frm(unsigned char *tx_buf, struct frm_para *sfpara, int ret, in
 	if(ret == 0){
 		switch(sfpara->fc){
 			case READCOILSTATUS:
-				txlen = build_resp_read_status(sfpara, tx_buf, READCOILSTATUS);
+				txlen = ser_build_resp_read_status(sfpara, tx_buf, READCOILSTATUS);
 				break;
 			case READINPUTSTATUS:
-				txlen = build_resp_read_status(sfpara, tx_buf, READINPUTSTATUS);
+				txlen = ser_build_resp_read_status(sfpara, tx_buf, READINPUTSTATUS);
 				break;
 			case READHOLDINGREGS:
-				txlen = build_resp_read_regs(sfpara, tx_buf, READHOLDINGREGS);
+				txlen = ser_build_resp_read_regs(sfpara, tx_buf, READHOLDINGREGS);
 				break;
 			case READINPUTREGS:
-				txlen = build_resp_read_regs(sfpara, tx_buf, READINPUTREGS);
+				txlen = ser_build_resp_read_regs(sfpara, tx_buf, READINPUTREGS);
 				break;
 			case FORCESIGLEREGS:
-				txlen = build_resp_set_single(sfpara, tx_buf, FORCESIGLEREGS);
+				txlen = ser_build_resp_set_single(sfpara, tx_buf, FORCESIGLEREGS);
 				break;
 			case PRESETEXCPSTATUS:
-				txlen = build_resp_set_single(sfpara, tx_buf, PRESETEXCPSTATUS);
+				txlen = ser_build_resp_set_single(sfpara, tx_buf, PRESETEXCPSTATUS);
 				break;
 			default:
-				printf("<Slave mode> unknow Function code : %x\n", sfpara->fc);
+				printf("<Slave mode> unknown function code : %d\n", sfpara->fc);
 				sleep(2);
 				return -1;
 		}
@@ -94,11 +95,11 @@ int _choose_resp_frm(unsigned char *tx_buf, struct frm_para *sfpara, int ret, in
 		*lock = 0;
 		return -1;
 	}else if(ret == -2){
-		txlen = build_resp_excp(sfpara, EXCPILLGFUNC, tx_buf);
+		txlen = ser_build_resp_excp(sfpara, EXCPILLGFUNC, tx_buf);
 	}else if(ret == -3){
-		txlen = build_resp_excp(sfpara, EXCPILLGDATAVAL, tx_buf);
+		txlen = ser_build_resp_excp(sfpara, EXCPILLGDATAVAL, tx_buf);
 	}else if(ret == -4){
-		txlen = build_resp_excp(sfpara, EXCPILLGDATAADDR, tx_buf);
+		txlen = ser_build_resp_excp(sfpara, EXCPILLGDATAADDR, tx_buf);
 	}
 	return txlen;
 }
@@ -176,6 +177,7 @@ int main(int argc, char **argv)
 		printf("<Slave mode> set termios fail\n");
 		return -1;
 	} 
+
 	do{
 		FD_ZERO(&wfds);
 		FD_ZERO(&rfds);
@@ -203,7 +205,7 @@ int main(int argc, char **argv)
 			}
 			printf("## rlen = %d ##\n", rlen);
 
-			ret = analz_query(rx_buf, &sfpara);
+			ret = ser_query_parser(rx_buf, &sfpara);
 		}
 		/* Send Respond */
 		if(FD_ISSET(fd, &wfds)){
