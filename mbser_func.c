@@ -220,7 +220,7 @@ int ser_build_query(unsigned char *tx_buf, struct frm_para *mfpara)
 /* 
  * build modbus serial respond exception
  */
-int ser_build_resp_excp(struct frm_para *sfpara, unsigned int excp_code, unsigned char *tx_buf)
+int ser_build_resp_excp(struct frm_para *sfpara, unsigned char excp_code, unsigned char *tx_buf)
 {
     int src_num;
 	unsigned int slvID;

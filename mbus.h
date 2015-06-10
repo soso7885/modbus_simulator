@@ -4,6 +4,7 @@
 #define TCPMBUSPROTOCOL			0
 #define TCPQUERYMSGLEN			6
 #define TCPRESPSETSIGNALLEN		6
+#define TCPRESPEXCPLEN			9
 #define TCPSENDQUERYLEN			12
 
 #define READCOILSTATUS 			0x01
@@ -55,7 +56,7 @@ int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara);
 int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen);
 
 int ser_build_query(unsigned char *tx_buf, struct frm_para *mfpara);
-int ser_build_resp_excp(struct frm_para *sfpara, unsigned int excp_code, unsigned char *tx_buf);
+int ser_build_resp_excp(struct frm_para *sfpara, unsigned char excp_code, unsigned char *tx_buf);
 int ser_build_resp_read_status(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc);
 int ser_build_resp_read_regs(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc);
 int ser_build_resp_set_single(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc);

@@ -6,15 +6,14 @@
 
 #include "mbus.h"
 
-int tcp_query_parser(unsigned char *rx_buf, struct tcp_frm_para *tsfpara)                                                                                                                                
-{
-    unsigned short qtransID, rtransID;
-    unsigned short qpotoID;
-    unsigned short qmsglen;
-    unsigned short qunitID, runitID;
-    unsigned char qfc, rfc;
-    unsigned short qstraddr, rstraddr;
-    unsigned short qact, rlen;
+int tcp_query_parser(unsigned char *rx_buf, struct tcp_frm_para *tsfpara)                                                                      {
+	unsigned short qtransID, rtransID;
+	unsigned short qpotoID;
+	unsigned short qmsglen;
+	unsigned short qunitID, runitID;
+	unsigned char qfc, rfc;
+	unsigned short qstraddr, rstraddr;
+	unsigned short qact, rlen;
 
     qtransID = *rx_buf << 8 | *(rx_buf+1);
     qpotoID = *(rx_buf+2) << 8 | *(rx_buf+3);
@@ -80,6 +79,9 @@ int tcp_query_parser(unsigned char *rx_buf, struct tcp_frm_para *tsfpara)
 int tcp_build_query(unsigned char *tx_buf, struct tcp_frm_para *tmfpara)
 {
 	unsigned short tmp16; 	
+	unsigned char tmp8;
+
+	tmfpara->msglen = TCPQUERYMSGLEN; 
 	
 	tmp16 = htons(tmfpara->transID);
 	memcpy(tx_buf, &tmp16, sizeof(tmp16));
@@ -90,8 +92,11 @@ int tcp_build_query(unsigned char *tx_buf, struct tcp_frm_para *tmfpara)
 	tmp16 = htons(tmfpara->msglen);
 	memcpy(tx_buf+4, &tmp16, sizeof(tmp16));
 	
-	memcpy(tx_buf+6, &tmfpara->unitID, sizeof(tmfpara->unitID));
-	memcpy(tx_buf+7, &tmfpara->fc, sizeof(tmfpara->fc));
+	tmp8 = htons(tmfpara->unitID);	
+	memcpy(tx_buf+6, &tmp8, sizeof(tmp8));
+	
+	tmp8 = htons(tmfpara->fc);
+	memcpy(tx_buf+7, &tmp8, sizeof(tmp8));
 
 	tmp16 = htons(tmfpara->straddr);
 	memcpy(tx_buf+8, &tmp16, sizeof(tmp16));
@@ -101,15 +106,52 @@ int tcp_build_query(unsigned char *tx_buf, struct tcp_frm_para *tmfpara)
 
 	return 0;
 }
+/*
+ * build modbus TCP respond exception
+ */
+int tcp_build_resp_excp(struct tcp_frm_para *tsfpara, unsigned char excp_code, unsigned char *tx_buf)
+{
+	int txlen;
+	unsigned char excp_fc;
+	unsigned char tmp8;
+	unsigned short tmp16;
 
-/* 
+	tsfpara->msglen = TCPQUERYMSGLEN;
+	
+	tmp16 = htons(tsfpara->transID);
+	memcpy(tx_buf, &tmp16, sizeof(tmp16));
+	
+	tmp16 = htons(tsfpara->potoID);
+	memcpy(tx_buf+2, &tmp16, sizeof(tmp16));
+	
+	tmp16 = htons(tsfpara->msglen);
+	memcpy(tx_buf+4, &tmp16, sizeof(tmp16));
+	
+	tmp8 = htons(tsfpara->unitID);
+	memcpy(tx_buf+6, &tmp8, sizeof(tmp8));
+	
+	excp_fc = tsfpara->fc | EXCPTIONCODE;
+	tmp8 = hotns(excp_fc);
+	memcpy(tx_buf+7, &tmp8, sizeof(tmp8));
+	
+	tmp8 = htons(excp_code);
+	memcpy(tx_buf+8, &tmp8, sizeof(tmp8));
+
+	txlen = TCPRESPEXCPLEN; 
+
+	printf("<Modbus TCP Slave> respond Excption Code");
+		
+	return txlen;
+}
+
+/*
  * FC 0x01 Read Coil Status respond / FC 0x02 Read Input Status
  */
 int tcp_build_resp_read_status(struct tcp_frm_para *tsfpara, unsigned char *tx_buf, unsigned char fc)
 {
     int i;
-    int byte;                                                                                                                                                                                             
-    int res;
+    int byte;
+	int res;
     int txlen;
 	unsigned char tmp8;
 	unsigned short tmp16;
