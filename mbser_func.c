@@ -58,11 +58,11 @@ int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara)
 int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
 {
 	int i;
-	int act_tmp;
-	int tmp;
+	int act_byte;
 	unsigned int qslvID;
 	unsigned char qfc;
 	unsigned int qact;
+	unsigned int qlen;
 	unsigned int raddr;
 	unsigned int rslvID;
 	unsigned char rfc;
@@ -71,7 +71,7 @@ int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
 	
 	qslvID = mfpara->slvID;
 	qfc = mfpara->fc;
-	qact = mfpara->act;
+	qlen = mfpara->len;
 	rslvID = *(rx_buf);	
 	rfc = *(rx_buf+1);
 	rrlen = *(rx_buf+2);
@@ -79,6 +79,7 @@ int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
 	if(qslvID ^ rslvID){		// check slave ID
 		printf("<Master mode> Slave ID improper !!\n");
 		return -1;
+	qlen = mfpara->len;;
 	}
 
 	if(qfc ^ rfc){			// check excption
@@ -111,12 +112,9 @@ int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
 	}
 
 	if(!(rfc ^ READCOILSTATUS) || !(rfc ^ READINPUTSTATUS)){	// fc = 0x01/0x02, get data len
-		act_tmp = qact / 8;
-		tmp = qact % 8;
-		if(tmp > 0){
-			act_tmp++;
-		}
-		if(rrlen != act_tmp){
+		act_byte = carry((int)qlen, 8);
+
+		if(rrlen != act_byte){
 			printf("<Master mode> length fault !!\n");
 			return -1;
 		}
@@ -126,7 +124,7 @@ int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
 		}
 		printf("\n");
 	}else if(!(rfc ^ READHOLDINGREGS) || !(rfc ^ READINPUTREGS)){	//fc = 0x03/0x04, get data byte
-		if(rrlen != qact<<1){
+		if(rrlen != qlen<<1){
 			printf("<Master mode> byte fault !!\n");
 			return -1;
 		}
@@ -139,7 +137,7 @@ int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
 	}else if(!(rfc ^ FORCESIGLEREGS)){		//fc = 0x05, get action
 		ract = *(rx_buf+4);
 		raddr = *(rx_buf+2)<<8 | *(rx_buf+3);
-		if(ract){
+		if(ract == 255){
 			printf("<Master mode> addr : %x The status to wirte on (FC:0x04)\n", raddr);
 		}else if(!ract){
 			printf("<Master mode> addr : %x The status to wirte off (FC:0x04)\n", raddr);
@@ -148,8 +146,14 @@ int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
 			return -1;
 		}
 	}else if(!(rfc ^ PRESETEXCPSTATUS)){	// fc = 0x06, get action
+		qact = mfpara->act;
+		raddr = *(rx_buf+2)<<8 | *(rx_buf+3);
 		ract = *(rx_buf+4)<<8 | *(rx_buf+5);
-		printf("<Master mode> Action code = %x\n", ract);
+		if(qact != ract){
+			printf("<Modbus serial Master> Action wrong !!\n");
+			return -1;
+		}
+		printf("<Master mode> addr : %x Action code = %x\n", raddr, ract);
 	}else{
 		printf("<Master mode> Unknow respond function code = %x\n", rfc);
 		return -1;

@@ -57,10 +57,10 @@ int _set_para(struct tcp_frm_para *tsfpara){
 	printf("Enter Start addr : ");
 	scanf("%hu", &tsfpara->straddr);
 	printf("Enter regs number : ");
-	if(cmd < 5){
-		scanf("%hu", &tsfpara->len);
-	}else{
+	if(cmd == 5 || cmd == 6){
 		scanf("%hu", &tsfpara->act);
+	}else{
+		scanf("%hu", &tsfpara->len);
 	}
 
 	return 0;
@@ -73,28 +73,34 @@ int _choose_resp_frm(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, int re
 	if(!ret){
 		switch(tsfpara->fc){
 			case READCOILSTATUS:
-				txlen = tcp_build_resp_read_status(tsfpara, tx_buf, READCOILSTATUS);
+				txlen = tcp_build_resp_read_status(tx_buf, tsfpara, READCOILSTATUS);
 				break;
 			case READINPUTSTATUS:
-				txlen = tcp_build_resp_read_status(tsfpara, tx_buf, READINPUTSTATUS);
+				txlen = tcp_build_resp_read_status(tx_buf, tsfpara, READINPUTSTATUS);
 				break;
 			case READHOLDINGREGS:
-				txlen = tcp_build_resp_read_regs(tsfpara, tx_buf, READHOLDINGREGS);
+				txlen = tcp_build_resp_read_regs(tx_buf, tsfpara, READHOLDINGREGS);
 				break;
 			case READINPUTREGS:
-				txlen = tcp_build_resp_read_regs(tsfpara, tx_buf, READINPUTREGS);
+				txlen = tcp_build_resp_read_regs(tx_buf, tsfpara, READINPUTREGS);
 				break;
 			case FORCESIGLEREGS:
-				txlen = tcp_build_resp_set_single(tsfpara, tx_buf, FORCESIGLEREGS);
+				txlen = tcp_build_resp_set_single(tx_buf, tsfpara, FORCESIGLEREGS);
 				break;
 			case PRESETEXCPSTATUS:
-				txlen = tcp_build_resp_set_single(tsfpara, tx_buf, PRESETEXCPSTATUS);
+				txlen = tcp_build_resp_set_single(tx_buf, tsfpara, PRESETEXCPSTATUS);
 				break;
 			default:
 				printf("<Modbus TCP Slave> unknown function code : %d\n", tsfpara->fc);
 				sleep(2);
 				return -1;
 			}
+	}else if(ret == -1){
+		txlen = tcp_build_resp_excp(tx_buf, tsfpara, EXCPILLGFUNC);
+	}else if(ret == -2){
+		txlen = tcp_build_resp_excp(tx_buf, tsfpara, EXCPILLGDATAADDR);
+	}else if(ret == -3){
+		txlen = tcp_build_resp_excp(tx_buf, tsfpara, EXCPILLGDATAVAL);
 	}
 	
 	return txlen;
@@ -260,6 +266,11 @@ int main()
 				printf("<Modbus Tcp Slave> Recv query fail ...\n");
 				continue;
 			}
+			ret = tcp_chk_pack_dest(rx_buf, &tsfpara);
+			if(ret == -1){
+				memset(rx_buf, 0, FRMLEN);
+				continue;
+			}
 			printf("<Modbus Tcp Slave> Recv query len = %d\n", rlen);
 			
 			printf("recv : ");
@@ -278,7 +289,7 @@ int main()
 				sleep(3);
 				continue;
 			}
-			txlen = tcp_build_resp_read_status(&tsfpara, tx_buf, READCOILSTATUS);
+			txlen = _choose_resp_frm(tx_buf, &tsfpara, ret, &lock);
 			if(txlen == -1){
 				continue;
 			}

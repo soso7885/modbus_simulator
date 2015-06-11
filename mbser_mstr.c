@@ -55,8 +55,13 @@ int _set_para(struct frm_para *mfpara)
     printf("Enter start address : ");
     scanf("%d", &straddr);
 	mfpara->straddr = straddr - 1;
-    printf("Enter action : ");
-    scanf("%d", &mfpara->act);
+	if(cmd == 5 || cmd == 6){
+		printf("Setting regsiter action : ");
+		scanf("%d", &mfpara->act);
+	}else{
+    	printf("Setting contain/shift len : ");
+    	scanf("%d", &mfpara->len);
+	}
 	
 	return 0;
 }

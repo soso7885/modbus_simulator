@@ -57,7 +57,11 @@ int _set_para(struct tcp_frm_para *tmfpara)
 	printf("Enter Start addr : ");
 	scanf("%hu", &tmfpara->straddr);
 	printf("Enter regs number : ");
-	scanf("%hu", &tmfpara->act);
+	if(cmd == 5 || cmd == 6){
+		scanf("%hu", &tmfpara->act);
+	}else{
+		scanf("%hu", &tmfpara->len);
+	}
 	
 	return 0;
 }
@@ -114,6 +118,7 @@ int main(int argc, char **argv)
 	int retval;
 	int wlen;
 	int rlen;
+	int lock;
 	char *addr;
 	unsigned char rx_buf[FRMLEN];
 	unsigned char tx_buf[FRMLEN];	
@@ -149,7 +154,8 @@ for(i = 0; i < 12; i++){
 printf(" %x |", tx_buf[i]);
 }
 printf("\n");
-
+	lock = 0;
+	
 	do{	
 		FD_ZERO(&rfds);
 		FD_ZERO(&wfds);
@@ -166,22 +172,37 @@ printf("\n");
 		}
 	
 		if(FD_ISSET(skfd, &wfds)){
-			wlen = send(skfd, &tx_buf, 12, MSG_NOSIGNAL);
+			if(!lock){
+				wlen = send(skfd, &tx_buf, 12, MSG_NOSIGNAL);
 			/*if(wlen != TCPSENDQUERYLEN){
 				printf("<Modbus TCP Master> send incomplete !!\n");
 				continue;
 			}*/
-			printf("<Modbus TCP Master> send query len = %d\n", wlen);
+				printf("<Modbus TCP Master> send query len = %d\n", wlen);
+				lock = 1;
+			}
 		}
-		if(FD_ISSET(skfd, &rfds)){/*
-			rlen = recv(skfd, rx_buf, sizeof(rx_buf),0); 
-			if(rlen < 0){
+		if(FD_ISSET(skfd, &rfds)){
+			if(!lock){
+				printf("Waiting for respond \n");
+				continue;
+			}
+			rlen = recv(skfd, rx_buf, FRMLEN, 0);
+			ret = tcp_chk_pack_dest(rx_buf, &tmfpara); 
+			if(ret == -1){
+				memset(rx_buf, 0, FRMLEN);
+				continue;
+			}
+			ret = tcp_resp_parser(rx_buf, &tmfpara, rlen);
+			if(rlen == -1){
 				printf("Fuckin no recv\n");
+				break;
+			}
+			if(ret == -1){
 				continue;
 			}           
 			printf("<Modbus TCP Master> recv respond len = %d\n", rlen);
-			ret = tcp_resp_parser(&rxbuf);	
-*/
+			lock = 0;
 		}
 		sleep(1);
 	}while(1);

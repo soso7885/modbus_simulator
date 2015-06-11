@@ -57,8 +57,13 @@ int _set_para(struct frm_para *sfpara)
 	printf("Setting contain, Start addr : ");
 	scanf("%d", &straddr);
 	sfpara->straddr = straddr - 1;
-	printf("Setting contain, Shift len : ");
-	scanf("%d", &sfpara->len);
+	if(cmd == 5 || cmd == 6){
+		printf("Setting register action : ");
+		scanf("%d", &sfpara->act);
+	}else{
+		printf("Setting contain/ Shift len : ");
+		scanf("%d", &sfpara->len);
+	}
 		
 	return 0;
 }
@@ -66,7 +71,7 @@ int _choose_resp_frm(unsigned char *tx_buf, struct frm_para *sfpara, int ret, in
 {
 	int txlen;
 
-	if(ret == 0){
+	if(!ret){
 		switch(sfpara->fc){
 			case READCOILSTATUS:
 				txlen = ser_build_resp_read_status(sfpara, tx_buf, READCOILSTATUS);

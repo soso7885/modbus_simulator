@@ -28,6 +28,21 @@
 
 #define FRMLEN 260  /* | 1byte | 1byte | 0~255byte | 2byte | */
 
+#define be8(a)	a >> 8
+
+static inline int carry(int bdiv, int div)
+{
+	int tmp;
+	int ans;
+	
+	ans = bdiv / div;
+	tmp = bdiv % div;
+	if(tmp > 0){
+		ans += 1;
+	}
+	return ans;
+}
+
 /* mudbus serila frame */
 struct frm_para {
 	unsigned int slvID;
@@ -62,11 +77,14 @@ int ser_build_resp_read_regs(struct frm_para *sfpara, unsigned char *tx_buf, uns
 int ser_build_resp_set_single(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc);
 
 int tcp_query_parser(unsigned char *rx_buf, struct tcp_frm_para *tsfpara);
+int tcp_resp_parser(unsigned char *rx_buf, struct tcp_frm_para *tmfpara, int rlen);
+int tcp_chk_pack_dest(unsigned char *rx_buf, struct tcp_frm_para *tsfpara);
 
 int tcp_build_query(unsigned char *tx_buf, struct tcp_frm_para *tmfpara);
-int tcp_build_resp_read_status(struct tcp_frm_para *tsfpara, unsigned char *tx_buf, unsigned char fc);
-int tcp_build_resp_read_regs(struct tcp_frm_para *tsfpara, unsigned char *tx_buf, unsigned char fc);
-int tcp_build_resp_set_single(struct tcp_frm_para *tsfpara, unsigned char *tx_buf, unsigned char fc);
+int tcp_build_resp_excp(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, unsigned char excp_code);
+int tcp_build_resp_read_status(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc);
+int tcp_build_resp_read_regs(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc);
+int tcp_build_resp_set_single(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc);
 
 
 #endif
