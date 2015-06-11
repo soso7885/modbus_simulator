@@ -19,7 +19,7 @@ int _set_para(struct frm_para *mfpara)
 	int cmd;
 	unsigned int straddr;
 	
-	printf("Master mode !\nEnter slave ID : ");
+	printf("RTU Master mode !\nEnter slave ID : ");
     scanf("%d", &mfpara->slvID);
     printf("Enter function code : ");
     scanf("%d", &cmd);
@@ -55,8 +55,11 @@ int _set_para(struct frm_para *mfpara)
     printf("Enter start address : ");
     scanf("%d", &straddr);
 	mfpara->straddr = straddr - 1;
-	if(cmd == 5 || cmd == 6){
-		printf("Setting regsiter action : ");
+	if(cmd == 5){
+		printf("Setting register write status (on/off) : ");
+		scanf("%d", &mfpara->act);
+	}else if(cmd == 6){
+		printf("Setting register action : ");
 		scanf("%d", &mfpara->act);
 	}else{
     	printf("Setting contain/shift len : ");
@@ -73,10 +76,10 @@ int _set_termois(int fd, struct termios2 *newtio)
 	/* get termios setting */
     ret = ioctl(fd, TCGETS2, newtio);                                                                                                                                                                    
     if(ret < 0){
-        printf("<Master mode> ioctl : %s\n", strerror(errno));
+        printf("<Modbus Serial Master> ioctl : %s\n", strerror(errno));
         return -1;
     }
-    printf("<Master mode> BEFORE setting : ospeed %d ispeed %d ret = %d\n", newtio->c_ospeed, newtio->c_ispeed, ret);
+    printf("<Modbus Serial Master> BEFORE setting : ospeed %d ispeed %d ret = %d\n", newtio->c_ospeed, newtio->c_ispeed, ret);
     /* set termios setting */
     newtio->c_iflag &= ~(ISTRIP|IUCLC|IGNCR|ICRNL|INLCR|ICANON|IXON|PARMRK);
     newtio->c_iflag |= (IGNBRK|IGNPAR);
@@ -87,10 +90,10 @@ int _set_termois(int fd, struct termios2 *newtio)
     newtio->c_ispeed = 9600;
     ret = ioctl(fd, TCSETS2, newtio);
     if(ret < 0){
-        printf("<Master mode> ioctl : %s\n", strerror(errno));
+        printf("<Modbus Serial Master> ioctl : %s\n", strerror(errno));
         return -1;
     }
-	printf("<Master mode> AFTER setting : ospeed %d ispeed %d ret = %d\n", newtio->c_ospeed, newtio->c_ispeed, ret);
+	printf("<Modbus Serial Master> AFTER setting : ospeed %d ispeed %d ret = %d\n", newtio->c_ospeed, newtio->c_ispeed, ret);
 	
 	return 0;
 }
@@ -123,19 +126,19 @@ int main(int argc, char **argv)
 	path = argv[1];
 
 	if(_set_para(&mfpara) == -1){
-		printf("<Master mode> Set parameters fail\n");
+		printf("<Modbus Serial Master> Set parameters fail\n");
 		exit(0);
 	}	
 	/* open com port */
 	fd = open(path, O_RDWR);
 	if(fd == -1){
-		printf("<Master mode> open : %s\n", strerror(errno));
+		printf("<Modbus Serial Master> open : %s\n", strerror(errno));
 		return -1;
 	}
-	printf("<Master mode> Com port fd = %d\n", fd);
+	printf("<Modbus Serial Master> Com port fd = %d\n", fd);
 
 	if(_set_termois(fd, &newtio) == -1){
-		printf("<Master mode> Set termios fail\n");
+		printf("<Modbus Serial Master> Set termios fail\n");
 		return -1;
 	} 
 
@@ -157,13 +160,13 @@ int main(int argc, char **argv)
 		retval = select(fd+1, &rfds, &wfds, 0, &tv);
 		if(retval <= 0){
 			wlen = 0;
-			printf("<Master mode> Select nothing\n");
+			printf("<Modbus Serial Master> Select nothing\n");
 			continue;
 		}
 		/* Recv Respond */
 		if(FD_ISSET(fd, &rfds) && lsr && wlen != 0){
 /*			if(!lsr){
-				printf("<Master mode> Waiting for respond...\n");
+				printf("<Modbus Serial Master> Waiting for respond...\n");
 				sleep(3);
 				continue;
 			}	
@@ -188,7 +191,7 @@ int main(int argc, char **argv)
 			wlen = write(fd, tx_buf, txlen);
 			ret = ioctl(fd, TIOCSERGETLSR, &lsr);
 			if(ret == -1){ // if device not support TIOCSERGETLSR, what should I do?
-				printf("TIOCSERGETLSR : %s\n", strerror(errno));
+				printf("<Modbus Serial Master> TIOCSERGETLSR : %s\n", strerror(errno));
 				sleep(2);
 			}else{
 				while(lsr == 0){
@@ -196,7 +199,7 @@ int main(int argc, char **argv)
 				}
 			}
 			if(txlen != wlen){
-				printf("<Master mode> write query incomplete !!\n");
+				printf("<Modbus Serial Master> write query incomplete !!\n");
 				continue;
 			}
 		}

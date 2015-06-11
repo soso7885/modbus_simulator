@@ -18,7 +18,7 @@
 int _set_para(struct tcp_frm_para *tsfpara){
 	int cmd;	
 	
-	printf("Enter Transaction ID : ");
+	printf("Modbus TCP Slave !\nEnter Transaction ID : ");
 	scanf("%hu", &tsfpara->transID);
 	tsfpara->potoID = (unsigned char)TCPMBUSPROTOCOL;
 	printf("Enter Unit ID : ");
@@ -54,12 +54,16 @@ int _set_para(struct tcp_frm_para *tsfpara){
 			printf("6        Preset Single Register\n");
 			return -1;
 	}	
-	printf("Enter Start addr : ");
+	printf("Setting Start addr : ");
 	scanf("%hu", &tsfpara->straddr);
-	printf("Enter regs number : ");
-	if(cmd == 5 || cmd == 6){
+	if(cmd == 5){
+		printf("Setting register write status (on/off) : ");
+		scanf("%hu", &tsfpara->act);
+	}else if(cmd == 6){
+		printf("Setting register action : ");
 		scanf("%hu", &tsfpara->act);
 	}else{
+		printf("Setting address shift length : ");
 		scanf("%hu", &tsfpara->len);
 	}
 

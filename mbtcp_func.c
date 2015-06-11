@@ -23,18 +23,7 @@ int tcp_query_parser(unsigned char *rx_buf, struct tcp_frm_para *tsfpara)
 	qstraddr = ntohs(tmp16);
 	memcpy(&tmp16, rx_buf+10, sizeof(tmp16));
 	qact = ntohs(tmp16);
-/*
-	qtransID = *rx_buf << 8 | *(rx_buf+1);
-	qpotoID = *(rx_buf+2) << 8 | *(rx_buf+3);
-	qmsglen = *(rx_buf+4) << 8 | *(rx_buf+5);
-	qunitID = *(rx_buf+6);
-    qfc = *(rx_buf+7);
-    qstraddr = *(rx_buf+8) << 8 | *(rx_buf+9);
-    qact = *(rx_buf+10) << 8 | *(rx_buf+11);
-   
-    rtransID = tsfpara->transID;
-    runitID = tsfpara->unitID;
-*/
+
     rfc = tsfpara->fc;
 	rstraddr = tsfpara->straddr;
 	rlen = tsfpara->len;
@@ -53,7 +42,7 @@ int tcp_query_parser(unsigned char *rx_buf, struct tcp_frm_para *tsfpara)
         if(!qact || qact == 255){
 			tsfpara->act = qact;
         }else{
-            printf("<Slave mode> Query set the status to write fuckin worng\n");
+            printf("<Modbus TCP Slave> Query set the status to write fuckin worng\n");
 			return -3;                          
         }
     }else if(!(rfc ^ PRESETEXCPSTATUS)){        // FC = 0x06, get the value to write
@@ -63,16 +52,13 @@ int tcp_query_parser(unsigned char *rx_buf, struct tcp_frm_para *tsfpara)
             tsfpara->straddr = qstraddr;
             tsfpara->len = qact;
 		}else{
-			printf("<Slave mode> The address have no contain\n");
-			printf("qstaddr = %d | qlen = %d | rstraddr = %d | rlen = %d\n", qstraddr, qact, rstraddr, rlen);
+			printf("<Modbus TCP Slave> The address have no contain\n");
 			return -2;
 		}
 	}
 
 	return 0;
 }
-
-int tcp_resp_parser();
 /* 
  * Check query transaction ID/Portocol ID/Unit ID correct or not, if wrong, then throw away it !
  */

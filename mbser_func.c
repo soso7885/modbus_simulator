@@ -24,12 +24,12 @@ int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara)
 	rlen = sfpara->len;
 
 	if(rslvID != qslvID){						// check master & slave mode slvId
-		printf("<Slave mode> Slave ID improper, slaveID from query : %d | slaveID from setting : %d\n", qslvID, rslvID);
+		printf("<Modbus Serial Slave> Slave ID improper, slaveID from query : %d | slaveID from setting : %d\n", qslvID, rslvID);
 		return -1;
 	}
 
 	if(rfc != qfc){
-		printf("<Slave mode> Function code improper\n");
+		printf("<Modbus Serial Slave> Function code improper\n");
 		return -2;
 	}
 	
@@ -37,7 +37,7 @@ int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara)
 		if(!qact || qact == 255){
 			sfpara->act = qact;
 		}else{
-			printf("<Slave mode> Query set the status to write fuckin worng\n");
+			printf("<Modbus Serial Slave> Query set the status to write fuckin worng\n");
 			return -3;							// the other fuckin respond excp code?
 		}
 	}else if(!(rfc ^ PRESETEXCPSTATUS)){		// FC = 0x06, get the value to write
@@ -47,7 +47,7 @@ int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara)
 			sfpara->straddr = qstraddr;
 			sfpara->len = qact;
 		}else{
-			printf("<Slave mode> The address have no contain\n");
+			printf("<Modbus Serial Slave> The address have no contain\n");
 			return -4;
 		}
 	 }
@@ -77,37 +77,37 @@ int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
 	rrlen = *(rx_buf+2);
 
 	if(qslvID ^ rslvID){		// check slave ID
-		printf("<Master mode> Slave ID improper !!\n");
+		printf("<Modbus Serial Master> Slave ID improper !!\n");
 		return -1;
 	qlen = mfpara->len;;
 	}
 
 	if(qfc ^ rfc){			// check excption
 		if(rfc == READCOILSTATUS_EXCP){
-			printf("<Master mode> Read Coil Status (FC=01) exception !!\n");
+			printf("<Modbus Serial Master> Read Coil Status (FC=01) exception !!\n");
 			return -1;
 		}
 		if(rfc == READINPUTSTATUS_EXCP){
-            printf("<Master mode> Read Input Status (FC=02) exception !!\n");
+            printf("<Modbus Serial Master> Read Input Status (FC=02) exception !!\n");
             return -1;
         }
 		if(rfc == READHOLDINGREGS_EXCP){
-            printf("<Master mode> Read Holding Registers (FC=03) exception !!\n");
+            printf("<Modbus Serial Master> Read Holding Registers (FC=03) exception !!\n");
             return -1;
         }
 		if(rfc == READINPUTREGS_EXCP){
-            printf("<Master mode> Read Input Registers (FC=04) exception !!\n");
+            printf("<Modbus Serial Master> Read Input Registers (FC=04) exception !!\n");
             return -1;
         }
 		if(rfc == FORCESIGLEREGS_EXCP){
-            printf("<Master mode> Force Single Coil (FC=05) exception !!\n");
+            printf("<Modbus Serial Master> Force Single Coil (FC=05) exception !!\n");
             return -1;
         }
 		if(rfc == PRESETEXCPSTATUS_EXCP){
-            printf("<Master mode> Preset Single Register (FC=06) exception !!\n");
+            printf("<Modbus Serial Master> Preset Single Register (FC=06) exception !!\n");
             return -1;
         }
-		printf("<Master mode> Uknow respond function code !!\n");
+		printf("<Modbus Serial Master> Uknow respond function code !!\n");
 		return -1;
 	}
 
@@ -115,20 +115,20 @@ int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
 		act_byte = carry((int)qlen, 8);
 
 		if(rrlen != act_byte){
-			printf("<Master mode> length fault !!\n");
+			printf("<Modbus Serial Master> length fault !!\n");
 			return -1;
 		}
-		printf("<Master mode> Data :");
+		printf("<Modbus Serial Master> Data :");
 		for(i = 3; i < rlen-2; i++){
 			printf(" %x |", *(rx_buf+i));
 		}
 		printf("\n");
 	}else if(!(rfc ^ READHOLDINGREGS) || !(rfc ^ READINPUTREGS)){	//fc = 0x03/0x04, get data byte
 		if(rrlen != qlen<<1){
-			printf("<Master mode> byte fault !!\n");
+			printf("<Modbus Serial Master> byte fault !!\n");
 			return -1;
 		}
-		printf("<Master mode> Data : ");
+		printf("<Modbus Serial Master> Data : ");
 		for(i = 3; i < rlen-2; i+=2){
 			printf(" %x%x", *(rx_buf+i), *(rx_buf+i+1));
 			printf("|");
@@ -138,11 +138,11 @@ int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
 		ract = *(rx_buf+4);
 		raddr = *(rx_buf+2)<<8 | *(rx_buf+3);
 		if(ract == 255){
-			printf("<Master mode> addr : %x The status to wirte on (FC:0x04)\n", raddr);
+			printf("<Modbus Serial Master> addr : %x The status to wirte on (FC:0x04)\n", raddr);
 		}else if(!ract){
-			printf("<Master mode> addr : %x The status to wirte off (FC:0x04)\n", raddr);
+			printf("<Modbus Serial Master> addr : %x The status to wirte off (FC:0x04)\n", raddr);
 		}else{
-			printf("<Master mode> Unknow action !!\n");
+			printf("<Modbus Serial Master> Unknow action !!\n");
 			return -1;
 		}
 	}else if(!(rfc ^ PRESETEXCPSTATUS)){	// fc = 0x06, get action
@@ -150,12 +150,12 @@ int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
 		raddr = *(rx_buf+2)<<8 | *(rx_buf+3);
 		ract = *(rx_buf+4)<<8 | *(rx_buf+5);
 		if(qact != ract){
-			printf("<Modbus serial Master> Action wrong !!\n");
+			printf("<Modbus Serial Master> Action wrong !!\n");
 			return -1;
 		}
-		printf("<Master mode> addr : %x Action code = %x\n", raddr, ract);
+		printf("<Modbus Serial Master> addr : %x Action code = %x\n", raddr, ract);
 	}else{
-		printf("<Master mode> Unknow respond function code = %x\n", rfc);
+		printf("<Modbus Serial Master> Unknow respond function code = %x\n", rfc);
 		return -1;
 	}
 	
@@ -189,30 +189,30 @@ int ser_build_query(unsigned char *tx_buf, struct frm_para *mfpara)
 	switch(fc){
 		case READCOILSTATUS:	// 0x01
 			src[1] = READCOILSTATUS;
-			printf("<Master mode> build Read Coil Status query\n");
+			printf("<Modbus Serial Master> build Read Coil Status query\n");
 			break;
 		case READINPUTSTATUS:	// 0x02
 			src[1] = READINPUTSTATUS;
-			printf("<Master mode> build Read Input Status query\n");
+			printf("<Modbus Serial Master> build Read Input Status query\n");
 			break;
 		case READHOLDINGREGS:	// 0x03
 			src[1] = READHOLDINGREGS;
-			printf("<Master mode> build Read Holding Register query\n");
+			printf("<Modbus Serial Master> build Read Holding Register query\n");
 			break;
 		case READINPUTREGS:		// 0x04
 			src[1] = READINPUTREGS;
-			printf("<Master mode> build Read Input Register query\n");
+			printf("<Modbus Serial Master> build Read Input Register query\n");
 			break;
 		case FORCESIGLEREGS:	// 0x05
 			src[1] = FORCESIGLEREGS;
-			printf("<Master mode> build Force Sigle Coil query\n");
+			printf("<Modbus Serial Master> build Force Sigle Coil query\n");
 			break;
 		case PRESETEXCPSTATUS:	// 0x06	
 			src[1] = PRESETEXCPSTATUS;
-			printf("<Master mode> build Preset Single Register query\n");
+			printf("<Modbus Serial Master> build Preset Single Register query\n");
 			break;
 		default:
-			printf("<Master mode> Unknow Function Code\n");
+			printf("<Modbus Serial Master> Unknow Function Code\n");
 			break;
 	}
 
@@ -239,7 +239,7 @@ int ser_build_resp_excp(struct frm_para *sfpara, unsigned char excp_code, unsign
     src[2] = excp_code;
     src_num = 3;
 
-    printf("<Slave mode> respond Excption Code\n");
+    printf("<Modbus Serial Slave> respond Excption Code\n");
     build_rtu_frm(tx_buf, src, src_num);
     src_num += 2;
 
@@ -278,9 +278,9 @@ int ser_build_resp_read_status(struct frm_para *sfpara, unsigned char *tx_buf, u
 		src[i] = 0;
     }
 	if(fc == READCOILSTATUS){
-    	printf("<Slave mode> respond Read Coil Status\n");
+    	printf("<Modbus Serial Slave> respond Read Coil Status\n");
     }else{
-		printf("<Slave mode> respond Read Input Status\n");
+		printf("<Modbus Serial Slave> respond Read Input Status\n");
 	}
 
     /* build RTU frame */
@@ -316,9 +316,9 @@ int ser_build_resp_read_regs(struct frm_para *sfpara, unsigned char *tx_buf, uns
 		src[i] = 0;
     }
 	if(fc == READHOLDINGREGS){
-    	printf("<Slave mode> respond Read Holding Registers \n");
+    	printf("<Modbus Serial Slave> respond Read Holding Registers \n");
 	}else{
-		printf("<Slave mode> respond Read Input Registers \n");
+		printf("<Modbus Serial Slave> respond Read Input Registers \n");
 	}
     
     /* build RTU frame */
@@ -352,9 +352,9 @@ int ser_build_resp_set_single(struct frm_para *sfpara, unsigned char *tx_buf, un
 	src_len = 6;
 	
 	if(fc == FORCESIGLEREGS){
-    	printf("<Slave mode> respond Force Single Coli \n");
+    	printf("<Modbus Serial Slave> respond Force Single Coli \n");
 	}else{
-		printf("<Slave mode> respond Preset Single Register \n");
+		printf("<Modbus Serial Slave> respond Preset Single Register \n");
 	}
     
     /* build RTU frame */

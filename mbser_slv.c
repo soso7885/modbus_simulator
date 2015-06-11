@@ -20,7 +20,7 @@ int _set_para(struct frm_para *sfpara)
 	int cmd;
 	unsigned int straddr;	
 	
-	printf("Enter Slave ID : ");
+	printf("RTU Modbus Slave mode !\nEnter Slave ID : ");
 	scanf("%d", &sfpara->slvID);
 	printf("Enter function code : ");
     scanf("%d", &cmd);
@@ -57,7 +57,10 @@ int _set_para(struct frm_para *sfpara)
 	printf("Setting contain, Start addr : ");
 	scanf("%d", &straddr);
 	sfpara->straddr = straddr - 1;
-	if(cmd == 5 || cmd == 6){
+	if(cmd == 5){
+		printf("Setting register write status (on/off) : ");
+		scanf("%d", &sfpara->act);
+	}else if(cmd == 6){
 		printf("Setting register action : ");
 		scanf("%d", &sfpara->act);
 	}else{
@@ -92,7 +95,7 @@ int _choose_resp_frm(unsigned char *tx_buf, struct frm_para *sfpara, int ret, in
 				txlen = ser_build_resp_set_single(sfpara, tx_buf, PRESETEXCPSTATUS);
 				break;
 			default:
-				printf("<Slave mode> unknown function code : %d\n", sfpara->fc);
+				printf("<Modbus Serial Slave> unknown function code : %d\n", sfpara->fc);
 				sleep(2);
 				return -1;
 		}
@@ -116,10 +119,10 @@ int _set_termois(int fd, struct termios2 *newtio)
 	/* get termios setting */
     ret = ioctl(fd, TCGETS2, newtio);                                                                                                                                                                    
     if(ret < 0){
-        printf("<Slave mode> ioctl : %s\n", strerror(errno));
+        printf("<Modbus Serial Slave> ioctl : %s\n", strerror(errno));
         return -1;
     }
-    printf("<Slave mode> BEFORE setting : ospeed %d ispeed %d ret = %d\n", newtio->c_ospeed, newtio->c_ispeed, ret);
+    printf("<Modbus Serial Slave> BEFORE setting : ospeed %d ispeed %d ret = %d\n", newtio->c_ospeed, newtio->c_ispeed, ret);
     /* set termios setting */
     newtio->c_iflag &= ~(ISTRIP|IUCLC|IGNCR|ICRNL|INLCR|ICANON|IXON|PARMRK);
     newtio->c_iflag |= (IGNBRK|IGNPAR);
@@ -130,10 +133,10 @@ int _set_termois(int fd, struct termios2 *newtio)
     newtio->c_ispeed = 9600;
     ret = ioctl(fd, TCSETS2, newtio);
     if(ret < 0){
-        printf("<Slave mode> ioctl : %s\n", strerror(errno));
+        printf("<Modbus Serial Slave> ioctl : %s\n", strerror(errno));
         return -1;
     }
-	printf("<Slave mode> AFTER setting : ospeed %d ispeed %d ret = %d\n", newtio->c_ospeed, newtio->c_ispeed, ret);
+	printf("<Modbus Serial Slave> AFTER setting : ospeed %d ispeed %d ret = %d\n", newtio->c_ospeed, newtio->c_ispeed, ret);
 	
 	return 0;
 }
@@ -166,20 +169,20 @@ int main(int argc, char **argv)
 	path = argv[1];
 
 	if(_set_para(&sfpara) == -1){
-		printf("<Slave mode> Set parameters fail\n");
+		printf("<Modbus Serial Slave> Set parameters fail\n");
 		return 0;
 	}
 
 	/* open com port */
 	fd = open(path, O_RDWR);
 	if(fd == -1){
-		printf("<Slave mode> open : %s\n", strerror(errno));
+		printf("<Modbus Serial Slave> open : %s\n", strerror(errno));
 		return -1;
 	}
-	printf("<Slave mode> Com port fd = %d\n", fd);
+	printf("<Modbus Serial Slave> Com port fd = %d\n", fd);
 
 	if(_set_termois(fd, &newtio) == -1){
-		printf("<Slave mode> set termios fail\n");
+		printf("<Modbus Serial Slave> set termios fail\n");
 		return -1;
 	} 
 
@@ -193,18 +196,18 @@ int main(int argc, char **argv)
 
 		retval = select(fd+1, &rfds, &wfds, 0, &tv);
 		if(retval == 0){
-			printf("<Slave mode> select nothing\n");
+			printf("<Modbus Serial Slave> select nothing\n");
 			continue;
 		}
 		/* Recv Query */
 		if(FD_ISSET(fd, &rfds)){
 			rlen = read(fd, rx_buf, RECVLEN);
 			if(rlen != 8){
-				printf("<Slave mode> read incomplete !!\n");
+				printf("<Modbus Serial Slave> read incomplete !!\n");
 				continue;
 			}
 			lock = 1;
-			printf("<Slave mode> Recv query :");
+			printf("<Modbus Serial Slave> Recv query :");
 			for(i = 0; i < RECVLEN; i++){
 				printf(" %x |", rx_buf[i]);
 			}
@@ -215,7 +218,7 @@ int main(int argc, char **argv)
 		/* Send Respond */
 		if(FD_ISSET(fd, &wfds)){
 			if(!lock){
-				printf("<Slave mode> wating for query ...\n");
+				printf("<Modbus Serial Slave> wating for query ...\n");
 				sleep(3);
 				continue;
 			}
@@ -224,9 +227,9 @@ int main(int argc, char **argv)
 				continue;
 			}
 			wlen = write(fd, tx_buf, txlen);
-			printf("<Slave mode> respond, wlen = %d\n", wlen);	
+			printf("<Modbus Serial Slave> respond, wlen = %d\n", wlen);	
 			if(wlen != txlen){
-				printf("<Slave mode> write incomplete !!\n");
+				printf("<Modbus Serial Slave> write incomplete !!\n");
 				continue;
 			}
 			lock = 0;
