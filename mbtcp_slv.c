@@ -230,23 +230,24 @@ int main()
 		exit(0);
 	}
 
-	reconn = 1;
+	skfd = _create_sk_srvr();
+	if(skfd == -1){
+		printf("<Modbus Tcp Slave> god damn wried !!\n");
+		exit(0);
+	}
 
-	do{
-		skfd = _create_sk_srvr();
-		if(skfd == -1){
-			printf("<Modbus Tcp Slave> god damn wried !!\n");
-			exit(0);
-		}
+	reconn = 1;	
 
-		if(!reconn){
-			continue;
-		}
-	
+	do{	
 		rskfd = _sk_accept(skfd);
 		if(rskfd == -1){
 			printf("<Modbus Tcp Slave> god damn wried !!\n");
-			exit(0);
+			continue;
+		}
+		
+		if(!reconn){
+			printf("<Modbus TCP Slave> wating for reconnect ..\n");
+			sleep(1);
 		}
 
 		reconn = 1;
@@ -269,9 +270,13 @@ int main()
 
 			if(FD_ISSET(rskfd, &rfds)){
 				rlen = recv(rskfd, rx_buf, sizeof(rx_buf), 0);
-				if(rlen < 0){
-					printf("<Modbus Tcp Slave> Recv query fail ...\n");
+				if(!rlen){
+					printf("<Modbus Tcp Slave> disconnect ...\n");
 					break;
+				}
+				if(rlen == -1){
+					printf("rlen = -1 fuck!!!!!!!!\n");
+					continue;
 				}
 				ret = tcp_chk_pack_dest(rx_buf, &tsfpara);
 				if(ret == -1){
@@ -314,11 +319,11 @@ int main()
 		}while(1);
 
 		close(rskfd);
-		close(skfd);
 		reconn = 0;
 		printf("<Modbus TCP Slave> Close socket !!\n");
 	}while(1);	
 	
+	close(skfd);
 	return 0;
 }
 

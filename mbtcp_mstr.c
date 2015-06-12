@@ -191,7 +191,7 @@ int main(int argc, char **argv)
 			wlen = send(skfd, &tx_buf, TCPSENDQUERYLEN, MSG_NOSIGNAL);
 			if(wlen != TCPSENDQUERYLEN){
 				printf("<Modbus TCP Master> send incomplete !!\n");
-				continue;
+				break;
 			}
 			printf("<Modbus TCP Master> send query len = %d\n", wlen);
 			tmfpara.transID++;
@@ -219,10 +219,11 @@ int main(int argc, char **argv)
 			ret = tcp_resp_parser(rx_buf, &tmfpara, rlen);
 			if(ret == -1){
 				continue;
-			}           
+			}
+	 
 			lock = 0;
 		}
-		sleep(1);
+		sleep(2);
 	}while(1);
 	
 	close(skfd);
