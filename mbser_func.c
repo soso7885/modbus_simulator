@@ -43,7 +43,7 @@ int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara)
 	}else if(!(rfc ^ PRESETEXCPSTATUS)){		// FC = 0x06, get the value to write
 		sfpara->act = qact;
 	}else{
-		if(qstraddr + qact <= rstraddr + rlen){	// Query addr+shift len must smaller than the contain we set in addr+shift len
+		if((qstraddr + qact <= rstraddr + rlen) && (qstraddr >= rstraddr)){	// Query addr+shift len must smaller than the contain we set in addr+shift len
 			sfpara->straddr = qstraddr;
 			sfpara->len = qact;
 		}else{
@@ -224,7 +224,7 @@ int ser_build_query(unsigned char *tx_buf, struct frm_para *mfpara)
 /* 
  * build modbus serial respond exception
  */
-int ser_build_resp_excp(struct frm_para *sfpara, unsigned char excp_code, unsigned char *tx_buf)
+int ser_build_resp_excp(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char excp_code)
 {
     int src_num;
 	unsigned int slvID;
@@ -249,7 +249,7 @@ int ser_build_resp_excp(struct frm_para *sfpara, unsigned char excp_code, unsign
 /* 
  * FC 0x01 Read Coil Status respond / FC 0x02 Read Input Status
  */
-int ser_build_resp_read_status(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc)
+int ser_build_resp_read_status(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char fc)
 {
     int i;
 	int byte;
@@ -292,7 +292,7 @@ int ser_build_resp_read_status(struct frm_para *sfpara, unsigned char *tx_buf, u
 /* 
  * FC 0x03 Read Holding Registers respond / FC 0x04 Read Input Registers respond
  */
-int ser_build_resp_read_regs(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc)
+int ser_build_resp_read_regs(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char fc)
 {
     int i;
     int byte;
@@ -330,7 +330,7 @@ int ser_build_resp_read_regs(struct frm_para *sfpara, unsigned char *tx_buf, uns
 /*
  * FC 0x05 Force Single Coli respond / FC 0x06 Preset Single Register respond
  */
-int ser_build_resp_set_single(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc)
+int ser_build_resp_set_single(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char fc)
 {
     int src_len;
 	unsigned int slvID;

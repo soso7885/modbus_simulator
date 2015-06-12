@@ -57,13 +57,7 @@ int _set_para(struct frm_para *sfpara)
 	printf("Setting contain, Start addr : ");
 	scanf("%d", &straddr);
 	sfpara->straddr = straddr - 1;
-	if(cmd == 5){
-		printf("Setting register write status (on/off) : ");
-		scanf("%d", &sfpara->act);
-	}else if(cmd == 6){
-		printf("Setting register action : ");
-		scanf("%d", &sfpara->act);
-	}else{
+	if(cmd < 5){
 		printf("Setting contain/ Shift len : ");
 		scanf("%d", &sfpara->len);
 	}
@@ -77,22 +71,22 @@ int _choose_resp_frm(unsigned char *tx_buf, struct frm_para *sfpara, int ret, in
 	if(!ret){
 		switch(sfpara->fc){
 			case READCOILSTATUS:
-				txlen = ser_build_resp_read_status(sfpara, tx_buf, READCOILSTATUS);
+				txlen = ser_build_resp_read_status(tx_buf, sfpara, READCOILSTATUS);
 				break;
 			case READINPUTSTATUS:
-				txlen = ser_build_resp_read_status(sfpara, tx_buf, READINPUTSTATUS);
+				txlen = ser_build_resp_read_status(tx_buf, sfpara, READINPUTSTATUS);
 				break;
 			case READHOLDINGREGS:
-				txlen = ser_build_resp_read_regs(sfpara, tx_buf, READHOLDINGREGS);
+				txlen = ser_build_resp_read_regs(tx_buf, sfpara, READHOLDINGREGS);
 				break;
 			case READINPUTREGS:
-				txlen = ser_build_resp_read_regs(sfpara, tx_buf, READINPUTREGS);
+				txlen = ser_build_resp_read_regs(tx_buf, sfpara, READINPUTREGS);
 				break;
 			case FORCESIGLEREGS:
-				txlen = ser_build_resp_set_single(sfpara, tx_buf, FORCESIGLEREGS);
+				txlen = ser_build_resp_set_single(tx_buf, sfpara, FORCESIGLEREGS);
 				break;
 			case PRESETEXCPSTATUS:
-				txlen = ser_build_resp_set_single(sfpara, tx_buf, PRESETEXCPSTATUS);
+				txlen = ser_build_resp_set_single(tx_buf, sfpara, PRESETEXCPSTATUS);
 				break;
 			default:
 				printf("<Modbus Serial Slave> unknown function code : %d\n", sfpara->fc);
@@ -103,11 +97,11 @@ int _choose_resp_frm(unsigned char *tx_buf, struct frm_para *sfpara, int ret, in
 		*lock = 0;
 		return -1;
 	}else if(ret == -2){
-		txlen = ser_build_resp_excp(sfpara, EXCPILLGFUNC, tx_buf);
+		txlen = ser_build_resp_excp(tx_buf, sfpara, EXCPILLGFUNC);
 	}else if(ret == -3){
-		txlen = ser_build_resp_excp(sfpara, EXCPILLGDATAVAL, tx_buf);
+		txlen = ser_build_resp_excp(tx_buf, sfpara, EXCPILLGDATAVAL);
 	}else if(ret == -4){
-		txlen = ser_build_resp_excp(sfpara, EXCPILLGDATAADDR, tx_buf);
+		txlen = ser_build_resp_excp(tx_buf, sfpara, EXCPILLGDATAADDR);
 	}
 	return txlen;
 }

@@ -17,12 +17,11 @@
 
 int _set_para(struct tcp_frm_para *tsfpara){
 	int cmd;	
+	unsigned short straddr;
 	
-	printf("Modbus TCP Slave !\nEnter Transaction ID : ");
-	scanf("%hu", &tsfpara->transID);
-	tsfpara->potoID = (unsigned char)TCPMBUSPROTOCOL;
-	printf("Enter Unit ID : ");
+	printf("Modbus TCP Slave !\nEnter Unit ID : ");
 	scanf("%hhu", &tsfpara->unitID);
+	tsfpara->potoID = (unsigned char)TCPMBUSPROTOCOL;
 	printf("Enter Function code : ");
 	scanf("%d", &cmd);
 	switch(cmd){
@@ -55,14 +54,9 @@ int _set_para(struct tcp_frm_para *tsfpara){
 			return -1;
 	}	
 	printf("Setting Start addr : ");
-	scanf("%hu", &tsfpara->straddr);
-	if(cmd == 5){
-		printf("Setting register write status (on/off) : ");
-		scanf("%hu", &tsfpara->act);
-	}else if(cmd == 6){
-		printf("Setting register action : ");
-		scanf("%hu", &tsfpara->act);
-	}else{
+	scanf("%hu", &straddr);
+	tsfpara->straddr = straddr - 1;
+	if(cmd < 5){
 		printf("Setting address shift length : ");
 		scanf("%hu", &tsfpara->len);
 	}
@@ -106,7 +100,7 @@ int _choose_resp_frm(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, int re
 	}else if(ret == -3){
 		txlen = tcp_build_resp_excp(tx_buf, tsfpara, EXCPILLGDATAVAL);
 	}
-	
+
 	return txlen;
 }
 
@@ -214,6 +208,7 @@ int _sk_accept(int skfd)
 int main()
 {
 	int i;
+	int reconn;
 	int skfd;
 	int rskfd;
 	int ret;
@@ -235,87 +230,94 @@ int main()
 		exit(0);
 	}
 
-	skfd = _create_sk_srvr();
-	if(skfd == -1){
-		printf("<Modbus Tcp Slave> god damn wried !!\n");
-		exit(0);
-	}
-	
-	rskfd = _sk_accept(skfd);
-	if(rskfd == -1){
-		printf("<Modbus Tcp Slave> god damn wried !!\n");
-		exit(0);
-	}
-	
-	lock = 0;
-	
+	reconn = 1;
+
 	do{
-		FD_ZERO(&rfds);
-		FD_ZERO(&wfds);
-		FD_SET(rskfd, &rfds);
-		FD_SET(rskfd, &wfds);
-	
-		tv.tv_sec = 2;
-		tv.tv_usec = 0;
-	
-		retval = select(rskfd + 1, &rfds, &wfds, 0, &tv);
-		if(retval <= 0){
-			printf("<Modbus Tcp Slave> select nothing ...\n");
+		skfd = _create_sk_srvr();
+		if(skfd == -1){
+			printf("<Modbus Tcp Slave> god damn wried !!\n");
+			exit(0);
+		}
+
+		if(!reconn){
 			continue;
 		}
-
-		if(FD_ISSET(rskfd, &rfds)){
-			rlen = recv(rskfd, rx_buf, sizeof(rx_buf), 0);
-			if(rlen < 0){
-				printf("<Modbus Tcp Slave> Recv query fail ...\n");
-				continue;
-			}
-			ret = tcp_chk_pack_dest(rx_buf, &tsfpara);
-			if(ret == -1){
-				memset(rx_buf, 0, FRMLEN);
-				continue;
-			}
-			printf("<Modbus Tcp Slave> Recv query len = %d\n", rlen);
-			
-			printf("recv : ");
-            for(i = 0; i < rlen; i++){
-                printf("%x | ", rx_buf[i]);
-            }
-            printf(" ## rlen = %d ##\n", rlen );
-
-			ret = tcp_query_parser(rx_buf, &tsfpara);
-			lock = 1;
-		}
 	
-		if(FD_ISSET(rskfd, &wfds)){
-			if(!lock){
-				printf("recv query first !\n");
-				sleep(3);
-				continue;
-			}
-			txlen = _choose_resp_frm(tx_buf, &tsfpara, ret, &lock);
-			if(txlen == -1){
-				continue;
-			}
-			/* show send respond */
-			printf("send resp :");
-			for(i = 0; i < txlen; i++){
-				printf(" %x |", tx_buf[i]);
-			}
-				printf(" ## txlen = %d ##\n", txlen);
-			/* show end */
-			wlen = send(rskfd, tx_buf, txlen, 0);
-			if(wlen != txlen){
-				printf("send error!\n");
-			}
-			printf("txlen = %d\n", wlen);
+		rskfd = _sk_accept(skfd);
+		if(rskfd == -1){
+			printf("<Modbus Tcp Slave> god damn wried !!\n");
+			exit(0);
 		}
-		lock = 0;
-		sleep(2);
-	}while(1);
 
-	close(rskfd);
-	close(skfd);
+		reconn = 1;
+		lock = 0;
+	
+		do{
+			FD_ZERO(&rfds);
+			FD_ZERO(&wfds);
+			FD_SET(rskfd, &rfds);
+			FD_SET(rskfd, &wfds);
+	
+			tv.tv_sec = 2;
+			tv.tv_usec = 0;
+	
+			retval = select(rskfd + 1, &rfds, &wfds, 0, &tv);
+			if(retval <= 0){
+				printf("<Modbus Tcp Slave> select nothing ...\n");
+				continue;
+			}
+
+			if(FD_ISSET(rskfd, &rfds)){
+				rlen = recv(rskfd, rx_buf, sizeof(rx_buf), 0);
+				if(rlen < 0){
+					printf("<Modbus Tcp Slave> Recv query fail ...\n");
+					break;
+				}
+				ret = tcp_chk_pack_dest(rx_buf, &tsfpara);
+				if(ret == -1){
+					memset(rx_buf, 0, FRMLEN);
+					sleep(3);
+					continue;
+				}	
+				printf("<Modbus TCP Slave> Recv : ");
+            	for(i = 0; i < rlen; i++){
+                	printf("%x | ", rx_buf[i]);
+            	}
+            	printf(" ## rlen = %d ##\n", rlen );
+
+				ret = tcp_query_parser(rx_buf, &tsfpara);
+				lock = 1;
+			}
+	
+			if(FD_ISSET(rskfd, &wfds) && lock){
+				txlen = _choose_resp_frm(tx_buf, &tsfpara, ret, &lock);
+				if(txlen == -1){
+					break;
+				}
+				/* show send respond *//*
+				printf("send resp :");
+				for(i = 0; i < txlen; i++){
+					printf(" %x |", tx_buf[i]);
+				}
+				printf(" ## txlen = %d ##\n", txlen);
+				*//* show end */
+				wlen = send(rskfd, tx_buf, txlen, 0);
+				if(wlen != txlen){
+					printf("<Modbus TCP Slave> send respond incomplete !!\n");
+					continue;
+				}
+				printf("txlen = %d\n", wlen);
+			}
+		
+			lock = 0;
+			sleep(2);
+		}while(1);
+
+		close(rskfd);
+		close(skfd);
+		reconn = 0;
+		printf("<Modbus TCP Slave> Close socket !!\n");
+	}while(1);	
 	
 	return 0;
 }

@@ -28,8 +28,6 @@
 
 #define FRMLEN 260  /* | 1byte | 1byte | 0~255byte | 2byte | */
 
-#define be8(a)	a >> 8
-
 static inline int carry(int bdiv, int div)
 {
 	int tmp;
@@ -40,6 +38,7 @@ static inline int carry(int bdiv, int div)
 	if(tmp > 0){
 		ans += 1;
 	}
+
 	return ans;
 }
 
@@ -66,15 +65,14 @@ struct tcp_frm_para {
 
 void build_rtu_frm(unsigned char *dst_buf, unsigned char *src_buf, unsigned char lenth);
 
-
 int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara);
 int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen);
 
 int ser_build_query(unsigned char *tx_buf, struct frm_para *mfpara);
-int ser_build_resp_excp(struct frm_para *sfpara, unsigned char excp_code, unsigned char *tx_buf);
-int ser_build_resp_read_status(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc);
-int ser_build_resp_read_regs(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc);
-int ser_build_resp_set_single(struct frm_para *sfpara, unsigned char *tx_buf, unsigned char fc);
+int ser_build_resp_excp(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char excp_code);
+int ser_build_resp_read_status(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char fc);
+int ser_build_resp_read_regs(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char fc);
+int ser_build_resp_set_single(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char fc);
 
 int tcp_query_parser(unsigned char *rx_buf, struct tcp_frm_para *tsfpara);
 int tcp_resp_parser(unsigned char *rx_buf, struct tcp_frm_para *tmfpara, int rlen);

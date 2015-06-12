@@ -16,6 +16,7 @@
 int _set_para(struct tcp_frm_para *tmfpara)
 {
 	int cmd;
+	unsigned short straddr;
 
 	printf("Modbus TCP Master mode !\nEnter Transaction ID : ");
 	scanf("%hu", &tmfpara->transID);
@@ -55,7 +56,8 @@ int _set_para(struct tcp_frm_para *tmfpara)
 			return -1;
     }
 	printf("Setting Start addr : ");
-	scanf("%hu", &tmfpara->straddr);
+	scanf("%hu", &straddr);
+	tmfpara->straddr = straddr - 1;
 	if(cmd == 5){
 		printf("Setting register write status (on/off) : ");
 		scanf("%hu", &tmfpara->act);
@@ -74,6 +76,7 @@ int _create_sk_cli(char *addr)
 {
 	int skfd;
 	int ret;
+	int opt;
 	struct addrinfo hints;
 	struct addrinfo *res;
 	struct addrinfo *p;
@@ -93,8 +96,15 @@ int _create_sk_cli(char *addr)
 		skfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
 		if(skfd == -1){
 			continue;
-		}else{
-			printf("<Modbus Tcp Master> fd = %d\n", skfd);
+		}
+		printf("<Modbus Tcp Master> fd = %d\n", skfd);
+		
+		opt = 1;
+		ret = setsockopt(skfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+		if(ret == -1){
+			printf("<Modbus Tcp master> setsockopt : %s\n", strerror(errno));
+			close(skfd);
+			exit(0);
 		}
 
 		ret = connect(skfd, p->ai_addr, p->ai_addrlen);
@@ -117,6 +127,7 @@ int _create_sk_cli(char *addr)
 
 int main(int argc, char **argv)
 {
+	int i;
 	int skfd;
 	int ret;
 	int retval;
@@ -132,7 +143,7 @@ int main(int argc, char **argv)
 	struct tcp_frm_para tmfpara;
 	
 	if(argc < 2){
-		printf("Enter fuckin IP addr !!\n");
+		printf("Enter fuckin server IP addr !!\n");
 		exit(0);
 	}	
 	addr = argv[1];
@@ -150,14 +161,15 @@ int main(int argc, char **argv)
 		exit(0);
 	}
 	
-	ret = tcp_build_query(tx_buf, &tmfpara);
+	tcp_build_query(tx_buf, &tmfpara);
 	
-int i;
-printf("send :");                                                                                                                                                                                         
-for(i = 0; i < 12; i++){
-printf(" %x |", tx_buf[i]);
-}
-printf("\n");
+	/* show send query */
+	printf("<Modbus TCP send query : ");
+	for(i = 0; i < TCPSENDQUERYLEN; i++ ){
+		printf("%x | ", tx_buf[i]);
+	}
+	printf("## len = %d ##\n", TCPSENDQUERYLEN);
+	/* show end */
 	lock = 0;
 	
 	do{	
@@ -175,37 +187,39 @@ printf("\n");
 			continue;
 		}
 	
-		if(FD_ISSET(skfd, &wfds)){
-			if(!lock){
-				wlen = send(skfd, &tx_buf, 12, MSG_NOSIGNAL);
-			/*if(wlen != TCPSENDQUERYLEN){
+		if(FD_ISSET(skfd, &wfds) && !lock){
+			wlen = send(skfd, &tx_buf, TCPSENDQUERYLEN, MSG_NOSIGNAL);
+			if(wlen != TCPSENDQUERYLEN){
 				printf("<Modbus TCP Master> send incomplete !!\n");
 				continue;
-			}*/
-				printf("<Modbus TCP Master> send query len = %d\n", wlen);
-				lock = 1;
 			}
+			printf("<Modbus TCP Master> send query len = %d\n", wlen);
+			tmfpara.transID++;
+			lock = 1;
 		}
-		if(FD_ISSET(skfd, &rfds)){
-			if(!lock){
-				printf("Waiting for respond \n");
-				continue;
-			}
+
+		if(FD_ISSET(skfd, &rfds) && lock){
 			rlen = recv(skfd, rx_buf, FRMLEN, 0);
+			if(rlen == -1){
+				printf("<Modbus TCP Master> fuckin recv empty !!\n");
+				break;
+			}
+			/* show recv respond */
+			printf("<Modbus TCP MASTER> Recv respond : ");
+			for(i = 0; i < rlen; i++){
+				printf("%x | ", rx_buf[i]);
+			}
+			printf("## rlen = %d ##\n", rlen);
+			/* show end */
 			ret = tcp_chk_pack_dest(rx_buf, &tmfpara); 
 			if(ret == -1){
 				memset(rx_buf, 0, FRMLEN);
 				continue;
 			}
 			ret = tcp_resp_parser(rx_buf, &tmfpara, rlen);
-			if(rlen == -1){
-				printf("Fuckin no recv\n");
-				break;
-			}
 			if(ret == -1){
 				continue;
 			}           
-			printf("<Modbus TCP Master> recv respond len = %d\n", rlen);
 			lock = 0;
 		}
 		sleep(1);
