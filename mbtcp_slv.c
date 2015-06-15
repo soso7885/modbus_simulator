@@ -204,24 +204,93 @@ int _sk_accept(int skfd)
 	
 	return rskfd;
 }
-	
-int main()
+
+int _conn_work(struct tcp_frm_para *tsfpara, int rskfd, int *lock)
 {
 	int i;
-	int reconn;
-	int skfd;
-	int rskfd;
-	int ret;
-	int retval;
 	int wlen;
 	int txlen;
 	int rlen;
-	int lock;
-	unsigned char rx_buf[FRMLEN];
-	unsigned char tx_buf[FRMLEN];
+	int retval;
+	int ret;	
 	fd_set rfds;
 	fd_set wfds;
-	struct timeval tv;	
+	struct timeval tv;
+	unsigned char rx_buf[FRMLEN];
+	unsigned char tx_buf[FRMLEN];
+
+	do{
+		FD_ZERO(&rfds);
+		FD_ZERO(&wfds);
+		FD_SET(rskfd, &rfds);
+		FD_SET(rskfd, &wfds);
+
+		tv.tv_sec = 2;
+		tv.tv_usec = 0;
+
+		retval = select(rskfd + 1, &rfds, &wfds, 0, &tv);
+		if(retval <= 0){
+			printf("<Modbus Tcp Slave> select nothing ...\n");
+			continue;
+		}
+
+		if(FD_ISSET(rskfd, &rfds)){
+			rlen = recv(rskfd, rx_buf, sizeof(rx_buf), 0);
+			if(rlen < 1){
+				printf("<Modbus Tcp Slave> disconnect (rlen = %d)...\n", rlen);
+				break;
+			}
+
+			ret = tcp_chk_pack_dest(rx_buf, tsfpara);
+			if(ret == -1){
+				memset(rx_buf, 0, FRMLEN);
+				sleep(3);
+				continue;
+			}   
+			printf("<Modbus TCP Slave> Recv : ");
+			for(i = 0; i < rlen; i++){
+				printf("%x | ", rx_buf[i]);
+			}
+			printf(" ## rlen = %d ##\n", rlen );
+
+			ret = tcp_query_parser(rx_buf, tsfpara);
+			*lock = 1;
+		}
+			
+		if(FD_ISSET(rskfd, &wfds) && *lock){
+			txlen = _choose_resp_frm(tx_buf, tsfpara, ret, lock);
+			if(txlen == -1){
+				break;
+			}
+			/* show send respond *//*
+			printf("send resp :");
+			for(i = 0; i < txlen; i++){
+				printf(" %x |", tx_buf[i]);
+			}
+			printf(" ## txlen = %d ##\n", txlen);
+			*//* show end */
+			wlen = send(rskfd, tx_buf, txlen, 0);
+			if(wlen != txlen){
+				printf("<Modbus TCP Slave> send respond incomplete !!\n");
+				continue;
+			}
+			printf("txlen = %d\n", wlen);
+		}
+
+		*lock = 0;
+		sleep(2);
+
+	}while(1);
+
+	return 0;
+}
+	
+int main()
+{
+	int skfd;
+	int rskfd;
+	int ret;
+	int lock;
 	struct tcp_frm_para tsfpara;
 
 	ret = _set_para(&tsfpara);
@@ -236,8 +305,6 @@ int main()
 		exit(0);
 	}
 
-	reconn = 1;	
-
 	do{	
 		rskfd = _sk_accept(skfd);
 		if(rskfd == -1){
@@ -245,87 +312,11 @@ int main()
 			continue;
 		}
 		
-		if(!reconn){
-			printf("<Modbus TCP Slave> wating for reconnect ..\n");
-			sleep(1);
-		}
-
-		reconn = 1;
 		lock = 0;
-	
-		do{
-			FD_ZERO(&rfds);
-			FD_ZERO(&wfds);
-			FD_SET(rskfd, &rfds);
-			FD_SET(rskfd, &wfds);
-	
-			tv.tv_sec = 2;
-			tv.tv_usec = 0;
-	
-			retval = select(rskfd + 1, &rfds, &wfds, 0, &tv);
-			if(retval <= 0){
-				printf("<Modbus Tcp Slave> select nothing ...\n");
-				continue;
-			}
-
-			if(FD_ISSET(rskfd, &rfds)){
-				rlen = recv(rskfd, rx_buf, sizeof(rx_buf), 0);
-				/*
-				if(!rlen){
-					printf("<Modbus Tcp Slave> disconnect ...\n");
-					break;
-				}
-				if(rlen == -1){
-					printf("rlen = -1 fuck!!!!!!!!\n");
-					continue;
-				}
-				*/
-				if(rlen < 1){
-					printf("<Modbus Tcp Slave> disconnect (rlen = %d)...\n", rlen);
-					break;
-				}
-				ret = tcp_chk_pack_dest(rx_buf, &tsfpara);
-				if(ret == -1){
-					memset(rx_buf, 0, FRMLEN);
-					sleep(3);
-					continue;
-				}	
-				printf("<Modbus TCP Slave> Recv : ");
-				for(i = 0; i < rlen; i++){
-					printf("%x | ", rx_buf[i]);
-				}
-				printf(" ## rlen = %d ##\n", rlen );
-
-				ret = tcp_query_parser(rx_buf, &tsfpara);
-				lock = 1;
-			}
-	
-			if(FD_ISSET(rskfd, &wfds) && lock){
-				txlen = _choose_resp_frm(tx_buf, &tsfpara, ret, &lock);
-				if(txlen == -1){
-					break;
-				}
-				/* show send respond *//*
-				printf("send resp :");
-				for(i = 0; i < txlen; i++){
-					printf(" %x |", tx_buf[i]);
-				}
-				printf(" ## txlen = %d ##\n", txlen);
-				*//* show end */
-				wlen = send(rskfd, tx_buf, txlen, 0);
-				if(wlen != txlen){
-					printf("<Modbus TCP Slave> send respond incomplete !!\n");
-					continue;
-				}
-				printf("txlen = %d\n", wlen);
-			}
 		
-			lock = 0;
-			sleep(2);
-		}while(1);
+		ret = _conn_work(&tsfpara, rskfd, &lock);
 
 		close(rskfd);
-		reconn = 0;
 		printf("<Modbus TCP Slave> Close socket !!\n");
 	}while(1);	
 	
