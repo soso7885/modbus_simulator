@@ -72,7 +72,7 @@ int _set_para(struct tcp_frm_para *tmfpara)
 		}
 	}else if(cmd == 6){
 		printf("Setting register action : ");
-		scanf("%hu", &tmfpara->straddr);
+		scanf("%hu", &tmfpara->act);
 	}else{
 		printf("Setting register shift length : ");
 		scanf("%hu", &tmfpara->len);
