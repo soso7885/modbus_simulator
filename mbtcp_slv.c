@@ -285,10 +285,10 @@ int main()
 					continue;
 				}	
 				printf("<Modbus TCP Slave> Recv : ");
-            	for(i = 0; i < rlen; i++){
-                	printf("%x | ", rx_buf[i]);
-            	}
-            	printf(" ## rlen = %d ##\n", rlen );
+				for(i = 0; i < rlen; i++){
+					printf("%x | ", rx_buf[i]);
+				}
+				printf(" ## rlen = %d ##\n", rlen );
 
 				ret = tcp_query_parser(rx_buf, &tsfpara);
 				lock = 1;

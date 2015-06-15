@@ -20,40 +20,40 @@ int _set_para(struct frm_para *mfpara)
 	unsigned int straddr;
 	
 	printf("RTU Master mode !\nEnter slave ID : ");
-    scanf("%d", &mfpara->slvID);
-    printf("Enter function code : ");
-    scanf("%d", &cmd);
-    switch(cmd){
-        case 1:
-            mfpara->fc = READCOILSTATUS;
-            break;
-        case 2:
-            mfpara->fc = READINPUTSTATUS;
-            break;
-        case 3:
-            mfpara->fc = READHOLDINGREGS;
-            break;
-        case 4:
-            mfpara->fc = READINPUTREGS;
-            break;
-        case 5:
-            mfpara->fc = FORCESIGLEREGS;
-            break;
-        case 6:
-            mfpara->fc = PRESETEXCPSTATUS;
-            break;
-        default:
-            printf("Function code :\n");
-            printf("1        Read Coil Status\n");
-            printf("2        Read Input Status\n");
-            printf("3        Read Holding Registers\n");
-            printf("4        Read Input Registers\n");
-            printf("5        Force Single Coil\n");
-            printf("6        Preset Single Register\n");
-            return -1;
-    }
-    printf("Enter start address : ");
-    scanf("%d", &straddr);
+	scanf("%d", &mfpara->slvID);
+	printf("Enter function code : ");
+	scanf("%d", &cmd);
+	switch(cmd){
+		case 1:
+			mfpara->fc = READCOILSTATUS;
+			break;
+		case 2:
+			mfpara->fc = READINPUTSTATUS;
+			break;
+		case 3:
+			mfpara->fc = READHOLDINGREGS;
+			break;
+		case 4:
+			mfpara->fc = READINPUTREGS;
+			break;
+		case 5:
+			mfpara->fc = FORCESIGLEREGS;
+			break;
+		case 6:
+			mfpara->fc = PRESETEXCPSTATUS;
+			break;
+		default:
+			printf("Function code :\n");
+			printf("1		Read Coil Status\n");
+			printf("2		Read Input Status\n");
+			printf("3		Read Holding Registers\n");
+			printf("4		Read Input Registers\n");
+			printf("5		Force Single Coil\n");
+			printf("6		Preset Single Register\n");
+			return -1;
+	}
+	printf("Enter start address : ");
+	scanf("%d", &straddr);
 	mfpara->straddr = straddr - 1;
 	if(cmd == 5){
 		printf("Setting register write status (on/off) : ");
@@ -62,8 +62,8 @@ int _set_para(struct frm_para *mfpara)
 		printf("Setting register action : ");
 		scanf("%d", &mfpara->act);
 	}else{
-    	printf("Setting contain/shift len : ");
-    	scanf("%d", &mfpara->len);
+		printf("Setting contain/shift len : ");
+		scanf("%d", &mfpara->len);
 	}
 	
 	return 0;
@@ -74,25 +74,25 @@ int _set_termois(int fd, struct termios2 *newtio)
 	int ret;
 
 	/* get termios setting */
-    ret = ioctl(fd, TCGETS2, newtio);                                                                                                                                                                    
-    if(ret < 0){
-        printf("<Modbus Serial Master> ioctl : %s\n", strerror(errno));
-        return -1;
-    }
-    printf("<Modbus Serial Master> BEFORE setting : ospeed %d ispeed %d ret = %d\n", newtio->c_ospeed, newtio->c_ispeed, ret);
-    /* set termios setting */
-    newtio->c_iflag &= ~(ISTRIP|IUCLC|IGNCR|ICRNL|INLCR|ICANON|IXON|PARMRK);
-    newtio->c_iflag |= (IGNBRK|IGNPAR);
-    newtio->c_lflag &= ~(ECHO|ICANON|ISIG);
-    newtio->c_cflag &= ~CBAUD;
-    newtio->c_cflag |= BOTHER;
-    newtio->c_ospeed = 9600;
-    newtio->c_ispeed = 9600;
-    ret = ioctl(fd, TCSETS2, newtio);
-    if(ret < 0){
-        printf("<Modbus Serial Master> ioctl : %s\n", strerror(errno));
-        return -1;
-    }
+	ret = ioctl(fd, TCGETS2, newtio);																																									
+	if(ret < 0){
+		printf("<Modbus Serial Master> ioctl : %s\n", strerror(errno));
+		return -1;
+	}
+	printf("<Modbus Serial Master> BEFORE setting : ospeed %d ispeed %d ret = %d\n", newtio->c_ospeed, newtio->c_ispeed, ret);
+	/* set termios setting */
+	newtio->c_iflag &= ~(ISTRIP|IUCLC|IGNCR|ICRNL|INLCR|ICANON|IXON|PARMRK);
+	newtio->c_iflag |= (IGNBRK|IGNPAR);
+	newtio->c_lflag &= ~(ECHO|ICANON|ISIG);
+	newtio->c_cflag &= ~CBAUD;
+	newtio->c_cflag |= BOTHER;
+	newtio->c_ospeed = 9600;
+	newtio->c_ispeed = 9600;
+	ret = ioctl(fd, TCSETS2, newtio);
+	if(ret < 0){
+		printf("<Modbus Serial Master> ioctl : %s\n", strerror(errno));
+		return -1;
+	}
 	printf("<Modbus Serial Master> AFTER setting : ospeed %d ispeed %d ret = %d\n", newtio->c_ospeed, newtio->c_ispeed, ret);
 	
 	return 0;
@@ -146,7 +146,7 @@ int main(int argc, char **argv)
 	/* Check Send */
 	for(i = 0; i < txlen; i++){
 		printf(" %x |", tx_buf[i]);
-    }
+	}
 	printf(" ## txlen = %d ##\n", txlen);
 
 	do{

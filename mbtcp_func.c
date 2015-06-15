@@ -30,33 +30,33 @@ int tcp_query_parser(unsigned char *rx_buf, struct tcp_frm_para *tsfpara)
 	memcpy(&tmp16, rx_buf+10, sizeof(tmp16));
 	qact = ntohs(tmp16);
 
-    rfc = tsfpara->fc;
+	rfc = tsfpara->fc;
 	rstraddr = tsfpara->straddr;
 	rlen = tsfpara->len;
 
-    if(qmsglen != TCPQUERYMSGLEN){
-        printf("<Modbus TCP Slave> Modbus TCP message length should be 6 byte !!\n");
+	if(qmsglen != TCPQUERYMSGLEN){
+		printf("<Modbus TCP Slave> Modbus TCP message length should be 6 byte !!\n");
 		return -4;
-    }
+	}
 
 	if(qfc != rfc){
-        printf("<Modbus TCP Slave> Modbus TCP function code improper !!\n");
+		printf("<Modbus TCP Slave> Modbus TCP function code improper !!\n");
 		return -1;
-    }
-    
-    if(!(rfc ^ FORCESIGLEREGS)){                // FC = 0x05, get the status to write(on/off)                                                                                                             
-        if(!qact || qact == 255){
+	}
+	
+	if(!(rfc ^ FORCESIGLEREGS)){                // FC = 0x05, get the status to write(on/off)
+		if(!qact || qact == 255){
 			tsfpara->act = qact;
-        }else{
-            printf("<Modbus TCP Slave> Query set the status to write fuckin worng\n");
-			return -3;                          
-        }
-    }else if(!(rfc ^ PRESETEXCPSTATUS)){        // FC = 0x06, get the value to write
-        tsfpara->act = qact;
-    }else{
-        if((qstraddr + qact <= rstraddr + rlen) && (qstraddr >= rstraddr)){ // Query addr+shift len must smaller than the contain we set in addr+shift len
-            tsfpara->straddr = qstraddr;
-            tsfpara->len = qact;
+		}else{
+			printf("<Modbus TCP Slave> Query set the status to write fuckin worng\n");
+			return -3;						  
+		}
+	}else if(!(rfc ^ PRESETEXCPSTATUS)){        // FC = 0x06, get the value to write
+		tsfpara->act = qact;
+	}else{
+		if((qstraddr + qact <= rstraddr + rlen) && (qstraddr >= rstraddr)){ // Query addr+shift len must smaller than the contain we set in addr+shift len
+			tsfpara->straddr = qstraddr;
+			tsfpara->len = qact;
 		}else{
 			printf("<Modbus TCP Slave> The address have no contain\n");
 			printf("Query addr : %x, shift len : %x | Respond addr: %x, shift len : %x\n",
@@ -278,14 +278,14 @@ int tcp_build_resp_excp(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, uns
  */
 int tcp_build_resp_read_status(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc)
 {
-    int i;
-    int byte;
-    int txlen;
+	int i;
+	int byte;
+	int txlen;
 	unsigned char tmp8;
 	unsigned short tmp16;
 	unsigned short msglen;
-    unsigned short len;   
-    
+	unsigned short len;   
+	
 	len = tsfpara->len;
 	byte = carry((int)len, 8);
 	txlen = byte + 9;
@@ -312,11 +312,11 @@ int tcp_build_resp_read_status(unsigned char *tx_buf, struct tcp_frm_para *tsfpa
 		memcpy(tx_buf+i, &tmp8, sizeof(tmp8));
 	}
 	
-    if(fc == READCOILSTATUS){
-        printf("<Modbus TCP Slave> respond Read Coil Status\n");
-    }else{
-        printf("<Modbus TCP Slave> respond Read Input Status\n");
-    }
+	if(fc == READCOILSTATUS){
+		printf("<Modbus TCP Slave> respond Read Coil Status\n");
+	}else{
+		printf("<Modbus TCP Slave> respond Read Input Status\n");
+	}
    
 	return txlen;
 }
@@ -325,93 +325,93 @@ int tcp_build_resp_read_status(unsigned char *tx_buf, struct tcp_frm_para *tsfpa
  */ 
 int tcp_build_resp_read_regs(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc)
 {
-    int i;                                                                                                                                                                                                
-    int byte;                                                                                                                                                                                             
-    int txlen;
+	int i;
+	int byte;
+	int txlen;
 	unsigned int num_regs;
-    unsigned char tmp8;
-    unsigned short tmp16;
-    unsigned short msglen;
-    
-    num_regs = tsfpara->len;
-    byte = num_regs * 2;
+	unsigned char tmp8;
+	unsigned short tmp16;
+	unsigned short msglen;
 
-    txlen = byte + 9;
-    msglen = byte + 2;  
-    tsfpara->msglen = msglen;
+	num_regs = tsfpara->len;
+	byte = num_regs * 2;
 
-    tmp16 = htons(tsfpara->transID);
-    memcpy(tx_buf, &tmp16, sizeof(tmp16));
-    
-    tmp16 = htons(tsfpara->potoID);
-    memcpy(tx_buf+2, &tmp16, sizeof(tmp16));
-    
-    tmp16 = htons(tsfpara->msglen);
-    memcpy(tx_buf+4, &tmp16, sizeof(tmp16));
+	txlen = byte + 9;
+	msglen = byte + 2;  
+	tsfpara->msglen = msglen;
+
+	tmp16 = htons(tsfpara->transID);
+	memcpy(tx_buf, &tmp16, sizeof(tmp16));
+	
+	tmp16 = htons(tsfpara->potoID);
+	memcpy(tx_buf+2, &tmp16, sizeof(tmp16));
+	
+	tmp16 = htons(tsfpara->msglen);
+	memcpy(tx_buf+4, &tmp16, sizeof(tmp16));
 
 	tmp8 = htole16(tsfpara->unitID);
-    memcpy(tx_buf+6, &tmp8, sizeof(tmp8));
+	memcpy(tx_buf+6, &tmp8, sizeof(tmp8));
 	
 	tmp8 = htole16(fc);
-    memcpy(tx_buf+7, &tmp8, sizeof(tmp8));
-    
+	memcpy(tx_buf+7, &tmp8, sizeof(tmp8));
+	
 	tmp8 = htole16((unsigned char)byte);
-    memcpy(tx_buf+8, &tmp8, sizeof(tmp8));
+	memcpy(tx_buf+8, &tmp8, sizeof(tmp8));
 
-    tmp16 = 0;
-    for(i = 9; i < txlen; i+=2){					// a register content need 2 byte
-        memcpy(tx_buf+i, &tmp16, sizeof(tmp16));
-    }
-    
-    if(fc == READHOLDINGREGS){
-        printf("<Modbus TCP Slave> respond Read Holding Registers\n");
-    }else{
-        printf("<Modbus TCP Slave> respond Read Input Registers\n");
-    }
+	tmp16 = 0;
+	for(i = 9; i < txlen; i+=2){					// a register content need 2 byte
+		memcpy(tx_buf+i, &tmp16, sizeof(tmp16));
+	}
+	
+	if(fc == READHOLDINGREGS){
+		printf("<Modbus TCP Slave> respond Read Holding Registers\n");
+	}else{
+		printf("<Modbus TCP Slave> respond Read Input Registers\n");
+	}
    
-    return txlen;
+	return txlen;
 }
 /* 
  * FC 0x05 Force Single Coli respond / FC 0x06 Preset Single Register respond
  */ 
 int tcp_build_resp_set_single(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc)
 {
-    int txlen;
-    unsigned char tmp8;
-    unsigned short tmp16;
+	int txlen;
+	unsigned char tmp8;
+	unsigned short tmp16;
 
-    tsfpara->msglen = (unsigned short)TCPRESPSETSIGNALLEN;
+	tsfpara->msglen = (unsigned short)TCPRESPSETSIGNALLEN;
 	
 	txlen = TCPRESPSETSIGNALLEN + 6;
 
-    tmp16 = htons(tsfpara->transID);
-    memcpy(tx_buf, &tmp16, sizeof(tmp16));
-    
-    tmp16 = htons(tsfpara->potoID);
-    memcpy(tx_buf+2, &tmp16, sizeof(tmp16));
-    
-    tmp16 = htons(tsfpara->msglen);
-    memcpy(tx_buf+4, &tmp16, sizeof(tmp16));
+	tmp16 = htons(tsfpara->transID);
+	memcpy(tx_buf, &tmp16, sizeof(tmp16));
+	
+	tmp16 = htons(tsfpara->potoID);
+	memcpy(tx_buf+2, &tmp16, sizeof(tmp16));
+	
+	tmp16 = htons(tsfpara->msglen);
+	memcpy(tx_buf+4, &tmp16, sizeof(tmp16));
 
 	tmp8 = htole16(tsfpara->unitID);
-    memcpy(tx_buf+6, &tmp8, sizeof(tmp8));
+	memcpy(tx_buf+6, &tmp8, sizeof(tmp8));
    
 	tmp8 = htole16(fc);
-    memcpy(tx_buf+7, &tmp8, sizeof(tmp8));
+	memcpy(tx_buf+7, &tmp8, sizeof(tmp8));
 
 	tmp16 = htons(tsfpara->straddr);
 	memcpy(tx_buf+8 ,&tmp16, sizeof(tmp16));
  
-    tmp16 = htons(tsfpara->act);
-    memcpy(tx_buf+10, &tmp16, sizeof(tmp16));
-    
-    if(fc == FORCESIGLEREGS){
-        printf("<Modbus TCP Slave> respond Force Single Coli\n");
+	tmp16 = htons(tsfpara->act);
+	memcpy(tx_buf+10, &tmp16, sizeof(tmp16));
+	
+	if(fc == FORCESIGLEREGS){
+		printf("<Modbus TCP Slave> respond Force Single Coli\n");
 	}else{
-        printf("<Modbus TCP Slave> respond Preset Single Register\n");
-    }  
+		printf("<Modbus TCP Slave> respond Preset Single Register\n");
+	}  
  
-    return txlen;
+	return txlen;
 }
 
 

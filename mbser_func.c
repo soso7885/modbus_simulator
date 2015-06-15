@@ -88,25 +88,25 @@ int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
 			return -1;
 		}
 		if(rfc == READINPUTSTATUS_EXCP){
-            printf("<Modbus Serial Master> Read Input Status (FC=02) exception !!\n");
-            return -1;
-        }
+			printf("<Modbus Serial Master> Read Input Status (FC=02) exception !!\n");
+			return -1;
+		}
 		if(rfc == READHOLDINGREGS_EXCP){
-            printf("<Modbus Serial Master> Read Holding Registers (FC=03) exception !!\n");
-            return -1;
-        }
+			printf("<Modbus Serial Master> Read Holding Registers (FC=03) exception !!\n");
+			return -1;
+		}
 		if(rfc == READINPUTREGS_EXCP){
-            printf("<Modbus Serial Master> Read Input Registers (FC=04) exception !!\n");
-            return -1;
-        }
+			printf("<Modbus Serial Master> Read Input Registers (FC=04) exception !!\n");
+			return -1;
+		}
 		if(rfc == FORCESIGLEREGS_EXCP){
-            printf("<Modbus Serial Master> Force Single Coil (FC=05) exception !!\n");
-            return -1;
-        }
+			printf("<Modbus Serial Master> Force Single Coil (FC=05) exception !!\n");
+			return -1;
+		}
 		if(rfc == PRESETEXCPSTATUS_EXCP){
-            printf("<Modbus Serial Master> Preset Single Register (FC=06) exception !!\n");
-            return -1;
-        }
+			printf("<Modbus Serial Master> Preset Single Register (FC=06) exception !!\n");
+			return -1;
+		}
 		printf("<Modbus Serial Master> Uknow respond function code !!\n");
 		return -1;
 	}
@@ -226,7 +226,7 @@ int ser_build_query(unsigned char *tx_buf, struct frm_para *mfpara)
  */
 int ser_build_resp_excp(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char excp_code)
 {
-    int src_num;
+	int src_num;
 	unsigned int slvID;
 	unsigned char fc;
 	unsigned char src[FRMLEN];
@@ -234,16 +234,16 @@ int ser_build_resp_excp(unsigned char *tx_buf, struct frm_para *sfpara, unsigned
 	slvID = sfpara->slvID;
 	fc = sfpara->fc;
 
-    src[0] = slvID;
-    src[1] = fc | EXCPTIONCODE;
-    src[2] = excp_code;
-    src_num = 3;
+	src[0] = slvID;
+	src[1] = fc | EXCPTIONCODE;
+	src[2] = excp_code;
+	src_num = 3;
 
-    printf("<Modbus Serial Slave> respond Excption Code\n");
-    build_rtu_frm(tx_buf, src, src_num);
-    src_num += 2;
+	printf("<Modbus Serial Slave> respond Excption Code\n");
+	build_rtu_frm(tx_buf, src, src_num);
+	src_num += 2;
 
-    return src_num;
+	return src_num;
 }
 
 /* 
@@ -251,15 +251,15 @@ int ser_build_resp_excp(unsigned char *tx_buf, struct frm_para *sfpara, unsigned
  */
 int ser_build_resp_read_status(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char fc)
 {
-    int i;
+	int i;
 	int byte;
 	int res;
-    int src_len;
+	int src_len;
 	unsigned int slvID;
 //	unsigned int straddr;
 	unsigned int len;	
-    unsigned char src[FRMLEN];
-    
+	unsigned char src[FRMLEN];
+	
 	slvID = sfpara->slvID;
 //	straddr = sfpara->straddr;
 	len = sfpara->len; 
@@ -268,39 +268,39 @@ int ser_build_resp_read_status(unsigned char *tx_buf, struct frm_para *sfpara, u
 	if(res > 0){
 		byte += 1;
 	}
-    src_len = byte + 3;
+	src_len = byte + 3;
 
-    src[0] = slvID;           		// Slave ID
+	src[0] = slvID;		   		// Slave ID
 	src[1] = fc;					// Function code
-	src[2] = byte & 0xff;       	// The number of data byte to follow
+	src[2] = byte & 0xff;	   	// The number of data byte to follow
 	for(i = 3; i < src_len; i++){	
 //		src[i] = (straddr%229 + i) & 0xff;	// The Coil Status addr status, we set random value (0 ~ 240) 
 		src[i] = 0;
-    }
+	}
 	if(fc == READCOILSTATUS){
-    	printf("<Modbus Serial Slave> respond Read Coil Status\n");
-    }else{
+		printf("<Modbus Serial Slave> respond Read Coil Status\n");
+	}else{
 		printf("<Modbus Serial Slave> respond Read Input Status\n");
 	}
 
-    /* build RTU frame */
-    build_rtu_frm(tx_buf, src, src_len);
-    src_len += 2;       // add CRC 2 byte
-    
-    return src_len;
+	/* build RTU frame */
+	build_rtu_frm(tx_buf, src, src_len);
+	src_len += 2;	   // add CRC 2 byte
+	
+	return src_len;
 } 
 /* 
  * FC 0x03 Read Holding Registers respond / FC 0x04 Read Input Registers respond
  */
 int ser_build_resp_read_regs(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char fc)
 {
-    int i;
-    int byte;
-    int src_len;
+	int i;
+	int byte;
+	int src_len;
 	unsigned int slvID;
 //	unsigned int straddr;
 	unsigned int num_regs;
-    unsigned char src[FRMLEN];
+	unsigned char src[FRMLEN];
 
 	slvID = sfpara->slvID;
 //	straddr = sfpara->straddr;
@@ -308,58 +308,58 @@ int ser_build_resp_read_regs(unsigned char *tx_buf, struct frm_para *sfpara, uns
 	byte = num_regs * 2;			// num_regs * 2byte
 	src_len = byte + 3;
 
-	src[0] = slvID;                 // Slave ID
-	src[1] = fc;       				// Function code
-	src[2] = byte & 0xff;           // The number of data byte to follow
-    for(i = 3; i < src_len; i++){   
+	src[0] = slvID;				 // Slave ID
+	src[1] = fc;	   				// Function code
+	src[2] = byte & 0xff;		   // The number of data byte to follow
+	for(i = 3; i < src_len; i++){   
 //		src[i] = (straddr%229 + i) & 0xff;	// The Holding Regs addr, we set random value (0 ~ 240)
 		src[i] = 0;
-    }
+	}
 	if(fc == READHOLDINGREGS){
-    	printf("<Modbus Serial Slave> respond Read Holding Registers \n");
+		printf("<Modbus Serial Slave> respond Read Holding Registers \n");
 	}else{
 		printf("<Modbus Serial Slave> respond Read Input Registers \n");
 	}
-    
-    /* build RTU frame */
-    build_rtu_frm(tx_buf, src, src_len);
-    src_len += 2;       // add CRC 2 byte
-    
-    return src_len;
+	
+	/* build RTU frame */
+	build_rtu_frm(tx_buf, src, src_len);
+	src_len += 2;	   // add CRC 2 byte
+	
+	return src_len;
 }
 /*
  * FC 0x05 Force Single Coli respond / FC 0x06 Preset Single Register respond
  */
 int ser_build_resp_set_single(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char fc)
 {
-    int src_len;
+	int src_len;
 	unsigned int slvID;
 	unsigned int straddr;
 	unsigned int act;
-    unsigned char src[FRMLEN];
+	unsigned char src[FRMLEN];
 	
 	slvID = sfpara->slvID;
 	straddr = sfpara->straddr;
 	act = sfpara->act;
-    
-    /* init data, fill in slave addr & function code ##Start Addr */
-    src[0] = slvID;                 // Slave ID
-    src[1] = fc;					// Function code
-    src[2] = straddr >> 8;			// data addr Hi
+	
+	/* init data, fill in slave addr & function code ##Start Addr */
+	src[0] = slvID;				 // Slave ID
+	src[1] = fc;					// Function code
+	src[2] = straddr >> 8;			// data addr Hi
 	src[3] = straddr;				// data addr Lo
 	src[4] = act >> 8;				// active Hi
 	src[5] = act;					// active Lo
 	src_len = 6;
 	
 	if(fc == FORCESIGLEREGS){
-    	printf("<Modbus Serial Slave> respond Force Single Coli \n");
+		printf("<Modbus Serial Slave> respond Force Single Coli \n");
 	}else{
 		printf("<Modbus Serial Slave> respond Preset Single Register \n");
 	}
-    
-    /* build RTU frame */
-    build_rtu_frm(tx_buf, src, src_len);
-    src_len += 2;       // add CRC 2 byte
-    
-    return src_len;
+	
+	/* build RTU frame */
+	build_rtu_frm(tx_buf, src, src_len);
+	src_len += 2;	   // add CRC 2 byte
+	
+	return src_len;
 }

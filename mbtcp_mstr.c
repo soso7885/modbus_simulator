@@ -54,7 +54,7 @@ int _set_para(struct tcp_frm_para *tmfpara)
 			printf("5        Force Single Coil\n");
 			printf("6        Preset Single Register\n");
 			return -1;
-    }
+	}
 	printf("Setting Start addr : ");
 	scanf("%hu", &straddr);
 	tmfpara->straddr = straddr - 1;
@@ -116,7 +116,7 @@ int _create_sk_cli(char *addr)
 	}
 
 	if(p == NULL){
-		printf("<Modbus Tcp Master> Fail to connect\n");    
+		printf("<Modbus Tcp Master> Fail to connect\n");
  		exit(0);
 	}
 

@@ -45,35 +45,35 @@ const unsigned  char auchCRCLo[] = {
 
 unsigned short crc_checksum(unsigned char *puchMsg, unsigned short usDataLen)
 {
-    unsigned char uchCRCHi = 0xFF; /* high byte of CRC initialized */
-    unsigned char uchCRCLo = 0xFF; /* low byte of CRC initialized */
-    unsigned uIndex; /* will index into CRC lookup table */
-    
-	/* pass through message buffer */
-    while (usDataLen--)
-    {
-        uIndex = uchCRCHi ^ *puchMsg++; /* calculate the CRC */
-        uchCRCHi = uchCRCLo ^ auchCRCHi[uIndex];
-        uchCRCLo = auchCRCLo[uIndex];
-    }
+	unsigned char uchCRCHi = 0xFF; /* high byte of CRC initialized */
+	unsigned char uchCRCLo = 0xFF; /* low byte of CRC initialized */
+	unsigned uIndex; /* will index into CRC lookup table */
 
-    return (uchCRCHi << 8 | uchCRCLo);
+	/* pass through message buffer */
+	while (usDataLen--)
+	{
+		uIndex = uchCRCHi ^ *puchMsg++; /* calculate the CRC */
+		uchCRCHi = uchCRCLo ^ auchCRCHi[uIndex];
+		uchCRCLo = auchCRCLo[uIndex];
+	}
+
+	return (uchCRCHi << 8 | uchCRCLo);
 }
 
 void build_rtu_frm(unsigned char *dst_buf, unsigned char *src_buf, unsigned char lenth)
 {
-    unsigned short crc_tmp;
+	unsigned short crc_tmp;
 
-    crc_tmp = crc_checksum(src_buf, lenth);
+	crc_tmp = crc_checksum(src_buf, lenth);
 //	printf("CRC in Hexadecimal = %x\n", crc_tmp);
-    *(src_buf + lenth) = crc_tmp >> 8 ;
-    *(src_buf + lenth + 1) = crc_tmp & 0xff;
-    lenth += 2;
+	*(src_buf + lenth) = crc_tmp >> 8 ;
+	*(src_buf + lenth + 1) = crc_tmp & 0xff;
+	lenth += 2;
 
-    while(lenth--)  { 
-        *dst_buf = *src_buf;
-        dst_buf++;
-        src_buf++;
-    }
+	while(lenth--)  { 
+		*dst_buf = *src_buf;
+		dst_buf++;
+		src_buf++;
+	}
 }
 
