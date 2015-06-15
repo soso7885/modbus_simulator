@@ -48,10 +48,20 @@ int tcp_query_parser(unsigned char *rx_buf, struct tcp_frm_para *tsfpara)
 		if(!qact || qact == 255){
 			tsfpara->act = qact;
 		}else{
-			printf("<Modbus TCP Slave> Query set the status to write fuckin worng\n");
+			printf("<Modbus TCP Slave> Query set the status to write fuckin worng(fc = 0x05)\n");
 			return -3;						  
 		}
+		if(qstraddr != rstraddr){
+			printf("<Modbus TCP Slave> Query register address wrong (fc = 0x05)");
+			printf(", query addr : %x | resp addr : %x\n", qstraddr, rstraddr);
+			return -2;
+		}
 	}else if(!(rfc ^ PRESETEXCPSTATUS)){        // FC = 0x06, get the value to write
+		if(qstraddr != rstraddr){
+			printf("<Modbus TCP Slave> Query register address wrong (fc = 0x06)");
+			printf(", query addr : %x | resp addr : %x\n", qstraddr, rstraddr);
+			return -2;
+		}
 		tsfpara->act = qact;
 	}else{
 		if((qstraddr + qact <= rstraddr + rlen) && (qstraddr >= rstraddr)){ // Query addr+shift len must smaller than the contain we set in addr+shift len
@@ -68,7 +78,8 @@ int tcp_query_parser(unsigned char *rx_buf, struct tcp_frm_para *tsfpara)
 	return 0;
 }
 /* 
- * Check query transaction ID/Portocol ID/Unit ID correct or not. If wrong, return -1 then throw away it !
+ * Check query transaction ID/Portocol ID/Unit ID correct or not. 
+ * If wrong, return -1 then throw away it !
  */
 int tcp_chk_pack_dest(unsigned char *rx_buf, struct tcp_frm_para *tfpara)
 {
@@ -242,11 +253,12 @@ int tcp_build_query(unsigned char *tx_buf, struct tcp_frm_para *tmfpara)
 int tcp_build_resp_excp(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, unsigned char excp_code)
 {
 	int txlen;
+	unsigned short msglen;
 	unsigned char excpfc;
 	unsigned char tmp8;
 	unsigned short tmp16;
 
-	tsfpara->msglen = TCPQUERYMSGLEN;
+	msglen = (unsigned short)TCPRESPEXCPMSGLEN;
 	
 	tmp16 = htons(tsfpara->transID);
 	memcpy(tx_buf, &tmp16, sizeof(tmp16));
@@ -254,7 +266,7 @@ int tcp_build_resp_excp(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, uns
 	tmp16 = htons(tsfpara->potoID);
 	memcpy(tx_buf+2, &tmp16, sizeof(tmp16));
 	
-	tmp16 = htons(tsfpara->msglen);
+	tmp16 = htons(msglen);
 	memcpy(tx_buf+4, &tmp16, sizeof(tmp16));
 	
 	tmp8 = htole16(tsfpara->unitID);
@@ -267,7 +279,7 @@ int tcp_build_resp_excp(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, uns
 	tmp8 = htole16(excp_code);
 	memcpy(tx_buf+8, &tmp8, sizeof(tmp8));
 
-	txlen = TCPRESPEXCPLEN; 
+	txlen = TCPRESPEXCPFRMLEN; 
 
 	printf("<Modbus TCP Slave> respond Excption Code");
 		

@@ -16,6 +16,7 @@
 int _set_para(struct tcp_frm_para *tmfpara)
 {
 	int cmd;
+	int tmp;
 	unsigned short straddr;
 
 	printf("Modbus TCP Master mode !\nEnter Transaction ID : ");
@@ -36,7 +37,7 @@ int _set_para(struct tcp_frm_para *tmfpara)
 		case 3:
 			tmfpara->fc = READHOLDINGREGS;
 			break;
-		case 4:                                                                                                                                                                                           
+		case 4:
 			tmfpara->fc = READINPUTREGS;
 			break;
 		case 5:
@@ -59,8 +60,16 @@ int _set_para(struct tcp_frm_para *tmfpara)
 	scanf("%hu", &straddr);
 	tmfpara->straddr = straddr - 1;
 	if(cmd == 5){
-		printf("Setting register write status (on/off) : ");
-		scanf("%hu", &tmfpara->act);
+		printf("Setting register write status (1 : on/0 : off) : ");
+		scanf("%d", &tmp);
+		if(tmp){
+			tmfpara->act = 255;
+		}else if(!tmp){
+			tmfpara->act = 0;
+		}else{
+			printf("Setting register write status Fail (1 : on/0 : off)\n");
+			exit(0);
+		}
 	}else if(cmd == 6){
 		printf("Setting register action : ");
 		scanf("%hu", &tmfpara->straddr);
@@ -102,7 +111,7 @@ int _create_sk_cli(char *addr)
 		opt = 1;
 		ret = setsockopt(skfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 		if(ret == -1){
-			printf("<Modbus Tcp master> setsockopt : %s\n", strerror(errno));
+			printf("<Modbus Tcp Master> setsockopt : %s\n", strerror(errno));
 			close(skfd);
 			exit(0);
 		}
@@ -164,7 +173,7 @@ int main(int argc, char **argv)
 	tcp_build_query(tx_buf, &tmfpara);
 	
 	/* show send query */
-	printf("<Modbus TCP send query : ");
+	printf("<Modbus TCP Master> send query : ");
 	for(i = 0; i < TCPSENDQUERYLEN; i++ ){
 		printf("%x | ", tx_buf[i]);
 	}
@@ -205,7 +214,7 @@ int main(int argc, char **argv)
 				break;
 			}
 			/* show recv respond */
-			printf("<Modbus TCP MASTER> Recv respond : ");
+			printf("<Modbus TCP Master> Recv respond : ");
 			for(i = 0; i < rlen; i++){
 				printf("%x | ", rx_buf[i]);
 			}

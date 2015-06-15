@@ -17,6 +17,7 @@
 int _set_para(struct frm_para *mfpara)
 {
 	int cmd;
+	int tmp;
 	unsigned int straddr;
 	
 	printf("RTU Master mode !\nEnter slave ID : ");
@@ -57,7 +58,15 @@ int _set_para(struct frm_para *mfpara)
 	mfpara->straddr = straddr - 1;
 	if(cmd == 5){
 		printf("Setting register write status (on/off) : ");
-		scanf("%d", &mfpara->act);
+		scanf("%d", &tmp);
+		if(tmp){
+			mfpara->act = 255;
+		}else if(!tmp){
+			mfpara->act = 0;
+		}else{
+			printf("Setting register write status FAIL !! (1 ; on / 0 : off)\n");
+			exit(0);
+		}
 	}else if(cmd == 6){
 		printf("Setting register action : ");
 		scanf("%d", &mfpara->act);

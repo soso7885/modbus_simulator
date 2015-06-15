@@ -270,6 +270,7 @@ int main()
 
 			if(FD_ISSET(rskfd, &rfds)){
 				rlen = recv(rskfd, rx_buf, sizeof(rx_buf), 0);
+				/*
 				if(!rlen){
 					printf("<Modbus Tcp Slave> disconnect ...\n");
 					break;
@@ -277,6 +278,11 @@ int main()
 				if(rlen == -1){
 					printf("rlen = -1 fuck!!!!!!!!\n");
 					continue;
+				}
+				*/
+				if(rlen < 1){
+					printf("<Modbus Tcp Slave> disconnect (rlen = %d)...\n", rlen);
+					break;
 				}
 				ret = tcp_chk_pack_dest(rx_buf, &tsfpara);
 				if(ret == -1){

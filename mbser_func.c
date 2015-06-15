@@ -37,10 +37,20 @@ int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara)
 		if(!qact || qact == 255){
 			sfpara->act = qact;
 		}else{
-			printf("<Modbus Serial Slave> Query set the status to write fuckin worng\n");
+			printf("<Modbus Serial Slave> Query set write status FUCKIN WRONG (fc = 0x05)\n");
 			return -3;							// the other fuckin respond excp code?
 		}
+		if(qstraddr != rstraddr){
+			printf("<Modbus Serial Slave> Query register address wrong (fc = 0x05)");
+			printf(", query addr : %x | resp addr : %x\n", qstraddr, rstraddr);
+			return -2;
+		} 
 	}else if(!(rfc ^ PRESETEXCPSTATUS)){		// FC = 0x06, get the value to write
+		if(qstraddr != rstraddr){
+			printf("<Modbus Serial Slave> Query register address wrong (fc = 0x06)");
+			printf(", query addr : %x | resp addr : %x\n", qstraddr, rstraddr);
+			return -2;
+		}
 		sfpara->act = qact;
 	}else{
 		if((qstraddr + qact <= rstraddr + rlen) && (qstraddr >= rstraddr)){	// Query addr+shift len must smaller than the contain we set in addr+shift len
