@@ -5,8 +5,6 @@
 
 int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara)
 {
-	unsigned int qslvID;
-	unsigned int rslvID;
 	unsigned char qfc;
 	unsigned char rfc;
 	unsigned int qstraddr;
@@ -14,19 +12,12 @@ int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara)
 	unsigned int qact;
 	unsigned int rlen;
 	
-	qslvID = *(rx_buf);
 	qfc = *(rx_buf+1);
 	qstraddr = *(rx_buf+2)<<8 | *(rx_buf+3);
 	qact = *(rx_buf+4)<<8 | *(rx_buf+5);
-	rslvID = sfpara->slvID;
 	rfc = sfpara->fc;
 	rstraddr = sfpara->straddr;
 	rlen = sfpara->len;
-
-	if(rslvID != qslvID){						// check master & slave mode slvId
-		printf("<Modbus Serial Slave> Slave ID improper, slaveID from query : %d | slaveID from setting : %d\n", qslvID, rslvID);
-		return -1;
-	}
 
 	if(rfc != qfc){
 		printf("<Modbus Serial Slave> Function code improper\n");
@@ -34,7 +25,7 @@ int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara)
 	}
 	
 	if(!(rfc ^ FORCESIGLEREGS)){				// FC = 0x05, get the status to write(on/off)
-		if(!qact || qact == 255){
+		if(!qact || qact == 0xff<<8){
 			sfpara->act = qact;
 		}else{
 			printf("<Modbus Serial Slave> Query set write status FUCKIN WRONG (fc = 0x05)\n");
@@ -64,35 +55,44 @@ int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara)
 	
 	return 0;
 }
+/*
+ * Check query Slave ID correct or not
+ * If wrong, return -1 the throw away it
+ */
+int ser_chk_dest(unsigned char *rx_buf, struct frm_para *fpara)
+{
+	unsigned int qslvID;
+	unsigned int rslvID;
+	
+	qslvID = *(rx_buf);
+	rslvID = fpara->slvID; 
+	
+	if(qslvID != rslvID){
+		printf("<Modbus Serial> Slave ID improper, slaveID from query : %d | slaveID from setting : %d\n", qslvID, rslvID);
+		return -1;
+	}
+	
+	return 0;
+}
 
 int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
 {
 	int i;
 	int act_byte;
-	unsigned int qslvID;
 	unsigned char qfc;
 	unsigned int qact;
 	unsigned int qlen;
 	unsigned int raddr;
-	unsigned int rslvID;
 	unsigned char rfc;
 	unsigned int rrlen;
 	unsigned int ract;
 	
-	qslvID = mfpara->slvID;
 	qfc = mfpara->fc;
-	qlen = mfpara->len;
-	rslvID = *(rx_buf);	
+	qlen = mfpara->len;	
 	rfc = *(rx_buf+1);
 	rrlen = *(rx_buf+2);
 
-	if(qslvID ^ rslvID){		// check slave ID
-		printf("<Modbus Serial Master> Slave ID improper !!\n");
-		return -1;
-	qlen = mfpara->len;;
-	}
-
-	if(qfc ^ rfc){			// check excption
+	if(qfc ^ rfc){	
 		if(rfc == READCOILSTATUS_EXCP){
 			printf("<Modbus Serial Master> Read Coil Status (FC=01) exception !!\n");
 			return -1;
@@ -171,7 +171,6 @@ int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
 	
 	return 0;
 }
-
 /*
  * build modbus serial master mode Query
  */
@@ -266,12 +265,10 @@ int ser_build_resp_read_status(unsigned char *tx_buf, struct frm_para *sfpara, u
 	int res;
 	int src_len;
 	unsigned int slvID;
-//	unsigned int straddr;
 	unsigned int len;	
 	unsigned char src[FRMLEN];
 	
 	slvID = sfpara->slvID;
-//	straddr = sfpara->straddr;
 	len = sfpara->len; 
 	res = len % 8;
 	byte = len / 8;	
@@ -280,11 +277,10 @@ int ser_build_resp_read_status(unsigned char *tx_buf, struct frm_para *sfpara, u
 	}
 	src_len = byte + 3;
 
-	src[0] = slvID;		   		// Slave ID
-	src[1] = fc;					// Function code
-	src[2] = byte & 0xff;	   	// The number of data byte to follow
+	src[0] = slvID;	
+	src[1] = fc;
+	src[2] = byte & 0xff;	  
 	for(i = 3; i < src_len; i++){	
-//		src[i] = (straddr%229 + i) & 0xff;	// The Coil Status addr status, we set random value (0 ~ 240) 
 		src[i] = 0;
 	}
 	if(fc == READCOILSTATUS){
@@ -293,9 +289,8 @@ int ser_build_resp_read_status(unsigned char *tx_buf, struct frm_para *sfpara, u
 		printf("<Modbus Serial Slave> respond Read Input Status\n");
 	}
 
-	/* build RTU frame */
 	build_rtu_frm(tx_buf, src, src_len);
-	src_len += 2;	   // add CRC 2 byte
+	src_len += 2;
 	
 	return src_len;
 } 
@@ -308,21 +303,18 @@ int ser_build_resp_read_regs(unsigned char *tx_buf, struct frm_para *sfpara, uns
 	int byte;
 	int src_len;
 	unsigned int slvID;
-//	unsigned int straddr;
 	unsigned int num_regs;
 	unsigned char src[FRMLEN];
 
 	slvID = sfpara->slvID;
-//	straddr = sfpara->straddr;
 	num_regs = sfpara->len;
-	byte = num_regs * 2;			// num_regs * 2byte
+	byte = num_regs * 2;
 	src_len = byte + 3;
 
-	src[0] = slvID;				 // Slave ID
-	src[1] = fc;	   				// Function code
-	src[2] = byte & 0xff;		   // The number of data byte to follow
+	src[0] = slvID;				 
+	src[1] = fc;
+	src[2] = byte & 0xff;
 	for(i = 3; i < src_len; i++){   
-//		src[i] = (straddr%229 + i) & 0xff;	// The Holding Regs addr, we set random value (0 ~ 240)
 		src[i] = 0;
 	}
 	if(fc == READHOLDINGREGS){
@@ -331,9 +323,8 @@ int ser_build_resp_read_regs(unsigned char *tx_buf, struct frm_para *sfpara, uns
 		printf("<Modbus Serial Slave> respond Read Input Registers \n");
 	}
 	
-	/* build RTU frame */
 	build_rtu_frm(tx_buf, src, src_len);
-	src_len += 2;	   // add CRC 2 byte
+	src_len += 2;
 	
 	return src_len;
 }
@@ -353,8 +344,8 @@ int ser_build_resp_set_single(unsigned char *tx_buf, struct frm_para *sfpara, un
 	act = sfpara->act;
 	
 	/* init data, fill in slave addr & function code ##Start Addr */
-	src[0] = slvID;				 // Slave ID
-	src[1] = fc;					// Function code
+	src[0] = slvID;
+	src[1] = fc;
 	src[2] = straddr >> 8;			// data addr Hi
 	src[3] = straddr;				// data addr Lo
 	src[4] = act >> 8;				// active Hi
@@ -367,9 +358,8 @@ int ser_build_resp_set_single(unsigned char *tx_buf, struct frm_para *sfpara, un
 		printf("<Modbus Serial Slave> respond Preset Single Register \n");
 	}
 	
-	/* build RTU frame */
 	build_rtu_frm(tx_buf, src, src_len);
-	src_len += 2;	   // add CRC 2 byte
+	src_len += 2;
 	
 	return src_len;
 }

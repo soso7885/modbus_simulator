@@ -72,7 +72,7 @@ int tcp_query_parser(struct tcp_frm *rx_buf, struct tcp_frm_para *tsfpara)
 	return 0;
 }
 /* 
- * Check query transaction ID/Portocol ID/Unit ID correct or not. 
+ * Check query Portocol ID/Unit ID correct or not. 
  * If wrong, return -1 then throw away it !
  */
 int tcp_chk_pack_dest(struct tcp_frm *rx_buf, struct tcp_frm_para *tfpara)
@@ -86,12 +86,12 @@ int tcp_chk_pack_dest(struct tcp_frm *rx_buf, struct tcp_frm_para *tfpara)
 	runitID = tfpara->unitID;
 		
 	if(qpotoID != (unsigned short)TCPMBUSPROTOCOL){
-		printf("<Modbus TCP Slave> recv query protocol ID wrong !!\n");
+		printf("<Modbus TCP> recv query protocol ID wrong !!\n");
 		return -1;
 	}
 	
 	if(qunitID != runitID){
-		printf("<Modbus TCP Slave> the destination of recv query wrong !!(unit ID) : ");
+		printf("<Modbus TCP> the destination of recv query wrong !!(unit ID) : ");
 		printf("Query unitID : %x | Respond unitID : %x\n", qunitID, runitID);
 		return -1;
 	}

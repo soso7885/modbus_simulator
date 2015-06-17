@@ -60,7 +60,7 @@ int _set_para(struct frm_para *mfpara)
 		printf("Setting register write status (on/off) : ");
 		scanf("%d", &tmp);
 		if(tmp){
-			mfpara->act = 255;
+			mfpara->act = 0xff<<8;
 		}else if(!tmp){
 			mfpara->act = 0;
 		}else{
@@ -70,6 +70,16 @@ int _set_para(struct frm_para *mfpara)
 	}else if(cmd == 6){
 		printf("Setting register action : ");
 		scanf("%d", &mfpara->act);
+	}else if(cmd == 3 || cmd == 4){
+		printf("Setting shift len");
+		scanf("%d", &tmp);
+		if(tmp > 110 || tmp < 0){
+			printf("Please DO NOT exceed 110 ! ");
+			printf("Come on, dude. That's just a testing progam.");
+			exit(0);
+		}else{
+			mfpara->len = (unsigned int)tmp;
+		}
 	}else{
 		printf("Setting contain/shift len : ");
 		scanf("%d", &mfpara->len);
@@ -152,12 +162,12 @@ int main(int argc, char **argv)
 	} 
 
 	txlen = ser_build_query(tx_buf, &mfpara);	// pack Query
-	/* Check Send */
+	/* Show send query */
 	for(i = 0; i < txlen; i++){
 		printf(" %x |", tx_buf[i]);
 	}
 	printf(" ## txlen = %d ##\n", txlen);
-
+	/* Show end */
 	do{
 		FD_ZERO(&wfds);
 		FD_ZERO(&rfds);
@@ -172,7 +182,7 @@ int main(int argc, char **argv)
 			printf("<Modbus Serial Master> Select nothing\n");
 			continue;
 		}
-		/* Recv Respond */
+
 		if(FD_ISSET(fd, &rfds) && lsr && wlen != 0){
 /*			if(!lsr){
 				printf("<Modbus Serial Master> Waiting for respond...\n");
@@ -181,14 +191,18 @@ int main(int argc, char **argv)
 			}	
 */
 			rlen = read(fd, rx_buf, FRMLEN);
-/*
+			/* Show recv resp *//*
 			printf("<Master mode> Recv respond :");
-			// check Recv 
 			for(i = 0; i < rlen; i++){
 				printf(" %x |", rx_buf[i]);
 			}
 			printf(" rlen = %d\n", rlen);
-*/
+			*//* Show end */
+			ret = ser_chk_dest(rx_buf, &mfpara);
+			if(ret == -1){
+				memset(rx_buf, 0, FRMLEN);
+				continue;
+			}
 			wlen = 0;
 			ret = ser_resp_parser(rx_buf, &mfpara, rlen);
 			if(ret == -1){

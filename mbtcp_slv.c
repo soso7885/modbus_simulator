@@ -60,15 +60,19 @@ int _set_para(struct tcp_frm_para *tsfpara){
 	if(cmd == 1 || cmd == 2){
 		printf("Setting address shift length : ");
 		scanf("%hu", &tsfpara->len);
-	}else{
+	}else if(cmd == 3 || cmd == 4){
 		printf("Setting address shift length : ");
 		scanf("%d", &tmp);
-		if(tmp > 100){
-			printf("Please DO NOT exceed 100 !\n");
+		if(tmp > 110 || tmp < 0){
+			printf("Please DO NOT exceed 110 !\n");
+			printf("Come on, dude. That's just a testing progam ...\n");
 			exit(0);
 		}else{
 			tsfpara->len = (unsigned short)tmp;
 		}
+	}else{
+		printf("Setting shift length : ");
+		scanf("%hu", &tsfpara->len);
 	}
 
 	return 0;
@@ -254,7 +258,6 @@ int _conn_work(struct tcp_frm_para *tsfpara, int rskfd, int *lock)
 			ret = tcp_chk_pack_dest((struct tcp_frm *)rx_buf, tsfpara);
 			if(ret == -1){
 				memset(rx_buf, 0, FRMLEN);
-				sleep(3);
 				continue;
 			}   
 			printf("<Modbus TCP Slave> Recv : ");
@@ -272,13 +275,13 @@ int _conn_work(struct tcp_frm_para *tsfpara, int rskfd, int *lock)
 			if(txlen == -1){
 				break;
 			}
-			/* show send respond */
+			/* show send respond *//*
 			printf("send resp :");
 			for(i = 0; i < txlen; i++){
 				printf(" %x |", tx_buf[i]);
 			}
 			printf(" ## txlen = %d ##\n", txlen);
-			/* show end */
+			*//* show end */
 			wlen = send(rskfd, tx_buf, txlen, 0);
 			if(wlen != txlen){
 				printf("<Modbus TCP Slave> send respond incomplete !!\n");

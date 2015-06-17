@@ -199,13 +199,20 @@ int main(int argc, char **argv)
 				printf("<Modbus Serial Slave> read incomplete !!\n");
 				continue;
 			}
+	
+			ret = ser_chk_dest(rx_buf, &sfpara);
+			if(ret == -1){
+				memset(rx_buf, 0, FRMLEN);
+				continue;
+			}
 			lock = 1;
+			/* Show recv query *//*
 			printf("<Modbus Serial Slave> Recv query :");
 			for(i = 0; i < RECVLEN; i++){
 				printf(" %x |", rx_buf[i]);
 			}
 			printf("## rlen = %d ##\n", rlen);
-
+			*//* show end */
 			ret = ser_query_parser(rx_buf, &sfpara);
 		}
 		/* Send Respond */

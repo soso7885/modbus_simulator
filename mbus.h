@@ -43,7 +43,7 @@ static inline int carry(int bdiv, int div)
 	return ans;
 }
 
-/* mudbus serila frame */
+/* modbus SERIAL frame */
 struct frm_para {
 	unsigned int slvID;
 	unsigned int len;
@@ -99,6 +99,7 @@ void build_rtu_frm(unsigned char *dst_buf, unsigned char *src_buf, unsigned char
 
 int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara);
 int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen);
+int ser_chk_dest(unsigned char *rx_buf, struct frm_para *fpara);
 
 int ser_build_query(unsigned char *tx_buf, struct frm_para *mfpara);
 int ser_build_resp_excp(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char excp_code);

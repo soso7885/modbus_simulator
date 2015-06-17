@@ -73,15 +73,19 @@ int _set_para(struct tcp_frm_para *tmfpara)
 	}else if(cmd == 6){
 		printf("Setting register action : ");
 		scanf("%hu", &tmfpara->act);
-	}else{
+	}else if(cmd == 3 || cmd == 4){
 		printf("Setting register shift length : ");
 		scanf("%d", &tmp);
-		if(tmp > 100){
-			printf("Please DO NOT exceed 100 !\n");
+		if(tmp > 110 || tmp < 0){
+			printf("Please DO NOT exceed 110 ! ");
+			printf("Come on, dude. That's just a testing progam ...\n");
 			exit(0);
 		}else{
 			tmfpara->len = (unsigned short)tmp;
 		}
+	}else{
+		printf("Setting shift length : ");
+		scanf("%hu", &tmfpara->len);
 	}
 	
 	return 0;
@@ -186,13 +190,13 @@ int main(int argc, char **argv)
 	
 		if(FD_ISSET(skfd, &wfds) && !lock){		
 			tcp_build_query((struct tcp_frm *)tx_buf, &tmfpara);
-            /* show send query */   
+            /* show send query *//* 
             printf("<Modbus TCP Master> send query : ");
             for(i = 0; i < TCPSENDQUERYLEN; i++ ){
                 printf("%x | ", tx_buf[i]);
             }
             printf("## len = %d ##\n", TCPSENDQUERYLEN);
-            /* show end */
+            *//* show end */
 			wlen = send(skfd, &tx_buf, TCPSENDQUERYLEN, MSG_NOSIGNAL);
 			if(wlen != TCPSENDQUERYLEN){
 				printf("<Modbus TCP Master> send incomplete !!\n");
@@ -210,13 +214,13 @@ int main(int argc, char **argv)
 				printf("<Modbus TCP Master> fuckin recv empty !!\n");
 				break;
 			}
-			/* show recv respond */
+			/* show recv respond *//*
 			printf("<Modbus TCP Master> Recv respond : ");
 			for(i = 0; i < rlen; i++){
 				printf("%x | ", rx_buf[i]);
 			}
 			printf("## rlen = %d ##\n", rlen);
-			/* show end */
+			*//* show end */
 			ret = tcp_chk_pack_dest((struct tcp_frm *)rx_buf, &tmfpara); 
 			if(ret == -1){
 				memset(rx_buf, 0, FRMLEN);
