@@ -2,33 +2,27 @@
 #include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>
-#include <endian.h> 
+#include <endian.h>
 
 #include "mbus.h"
 /*
  * Analyze modebus TCP query
  */
-int tcp_query_parser(unsigned char *rx_buf, struct tcp_frm_para *tsfpara)
+int tcp_query_parser(struct tcp_frm *rx_buf, struct tcp_frm_para *tsfpara)
 {
-	unsigned short tmp16;
-	unsigned char tmp8;
 	unsigned short qtransID;
 	unsigned short qmsglen;
 	unsigned char qfc, rfc;
 	unsigned short qstraddr, rstraddr;
 	unsigned short qact, rlen;
-
-	memcpy(&tmp16, rx_buf, sizeof(tmp16));
-	qtransID = ntohs(tmp16);
+	
+	qtransID = be16toh(rx_buf->transID);
 	tsfpara->transID = qtransID;
-	memcpy(&tmp16, rx_buf+4, sizeof(tmp16));
-	qmsglen = ntohs(tmp16);
-	memcpy(&tmp8, rx_buf+7, sizeof(tmp8));
-	qfc = le16toh(tmp8);
-	memcpy(&tmp16, rx_buf+8, sizeof(tmp16));
-	qstraddr = ntohs(tmp16);
-	memcpy(&tmp16, rx_buf+10, sizeof(tmp16));
-	qact = ntohs(tmp16);
+
+	qmsglen = be16toh(rx_buf->msglen);
+	qfc = rx_buf->fc;
+	qstraddr = be16toh(rx_buf->straddr);
+	qact = be16toh(rx_buf->act);
 
 	rfc = tsfpara->fc;
 	rstraddr = tsfpara->straddr;
@@ -45,7 +39,7 @@ int tcp_query_parser(unsigned char *rx_buf, struct tcp_frm_para *tsfpara)
 	}
 	
 	if(!(rfc ^ FORCESIGLEREGS)){                // FC = 0x05, get the status to write(on/off)
-		if(!qact || qact == 255){
+		if(!qact || qact == 0xff<<8){
 			tsfpara->act = qact;
 		}else{
 			printf("<Modbus TCP Slave> Query set the status to write fuckin worng(fc = 0x05)\n");
@@ -81,18 +75,14 @@ int tcp_query_parser(unsigned char *rx_buf, struct tcp_frm_para *tsfpara)
  * Check query transaction ID/Portocol ID/Unit ID correct or not. 
  * If wrong, return -1 then throw away it !
  */
-int tcp_chk_pack_dest(unsigned char *rx_buf, struct tcp_frm_para *tfpara)
+int tcp_chk_pack_dest(struct tcp_frm *rx_buf, struct tcp_frm_para *tfpara)
 {
-	unsigned short tmp16;
-	unsigned char tmp8;
 	unsigned short qpotoID;
 	unsigned char qunitID, runitID;
 	
-	memcpy(&tmp16, rx_buf+2, sizeof(tmp16));
-	qpotoID = ntohs(tmp16);
-	
-	memcpy(&tmp8, rx_buf+6, sizeof(tmp8));
-	qunitID = le16toh(tmp8);
+	qpotoID = be16toh(rx_buf->potoID);
+	qunitID = rx_buf->unitID;
+
 	runitID = tfpara->unitID;
 		
 	if(qpotoID != (unsigned short)TCPMBUSPROTOCOL){
@@ -115,7 +105,6 @@ int tcp_resp_parser(unsigned char *rx_buf, struct tcp_frm_para *tmfpara, int rle
 {
 	int i;
 	int act_byte;
-	unsigned char tmp8;
 	unsigned short tmp16;
 	unsigned char qfc, rfc;
 	unsigned short qact, ract;
@@ -124,11 +113,9 @@ int tcp_resp_parser(unsigned char *rx_buf, struct tcp_frm_para *tmfpara, int rle
 	unsigned short rrlen;
 	
 	qfc = tmfpara->fc;
-	memcpy(&tmp8, rx_buf+7, sizeof(tmp8));
-	rfc = le16toh(tmp8);
+	rfc = *(rx_buf+7);
 	qlen = tmfpara->len;
-	memcpy(&tmp8, rx_buf+8, sizeof(tmp8));
-	rrlen = le16toh(tmp8);
+	rrlen = *(rx_buf+8);
 	
 	if(qfc != rfc){
 		if(rfc == READCOILSTATUS_EXCP){
@@ -180,8 +167,7 @@ int tcp_resp_parser(unsigned char *rx_buf, struct tcp_frm_para *tmfpara, int rle
 	}else if(!(rfc ^ FORCESIGLEREGS)){								// fc = 0x05, get write on/off status
 		memcpy(&tmp16, rx_buf+8, sizeof(tmp16));
 		raddr = ntohs(tmp16);
-		memcpy(&tmp8, rx_buf+10, sizeof(tmp8));
-		ract = le16toh(tmp8);
+		ract = *(rx_buf+10);
 		if(ract == 255){
 			printf("<Modbus TCP Master> addr : %x The status to wirte on (FC:0x04)\n", raddr);
 		}else if(!ract){
@@ -211,90 +197,54 @@ int tcp_resp_parser(unsigned char *rx_buf, struct tcp_frm_para *tmfpara, int rle
 /*
  * build Modbus TCP query
  */			
-int tcp_build_query(unsigned char *tx_buf, struct tcp_frm_para *tmfpara)
+int tcp_build_query(struct tcp_frm *tx_buf, struct tcp_frm_para *tmfpara)
 {
-	unsigned short tmp16; 	
-	unsigned char tmp8;
-
-	tmfpara->msglen = TCPQUERYMSGLEN; 
-	
-	tmp16 = htons(tmfpara->transID);
-	memcpy(tx_buf, &tmp16, sizeof(tmp16));
-	
-	tmp16 = htons(tmfpara->potoID);
-	memcpy(tx_buf+2, &tmp16, sizeof(tmp16));
-	
-	tmp16 = htons(tmfpara->msglen);
-	memcpy(tx_buf+4, &tmp16, sizeof(tmp16));
-	
-	tmp8 = htole16(tmfpara->unitID);
-	memcpy(tx_buf+6, &tmp8, sizeof(tmp8));
-
-	tmp8 = htole16(tmfpara->fc);
-	memcpy(tx_buf+7, &tmp8, sizeof(tmp8));
-
-	tmp16 = htons(tmfpara->straddr);
-	memcpy(tx_buf+8, &tmp16, sizeof(tmp16));
-
+	tx_buf->transID = htons(tmfpara->transID);
+	tx_buf->potoID = htons(tmfpara->potoID);
+	tx_buf->msglen = htons((unsigned short)TCPQUERYMSGLEN);
+	tx_buf->unitID = tmfpara->unitID;
+	tx_buf->fc = tmfpara->fc;
+	tx_buf->straddr = htons(tmfpara->straddr);
 	if(tmfpara->fc == 5 || tmfpara->fc == 6){
-		tmp16 = htons(tmfpara->act);
-		memcpy(tx_buf+10, &tmp16, sizeof(tmp16));
+		tx_buf->act = htons(tmfpara->act);
 	}else{
-		tmp16 = htons(tmfpara->len);
-		memcpy(tx_buf+10, &tmp16, sizeof(tmp16));
+		tx_buf->act = htons(tmfpara->len);
 	}
-	memset(tx_buf+12, '\0', 1);
 
 	return 0;
 }
 /*
  * build modbus TCP respond exception
  */
-int tcp_build_resp_excp(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, unsigned char excp_code)
+int tcp_build_resp_excp(struct tcp_frm_excp *tx_buf, struct tcp_frm_para *tsfpara, unsigned char excp_code)
 {
 	int txlen;
 	unsigned short msglen;
-	unsigned char excpfc;
-	unsigned char tmp8;
-	unsigned short tmp16;
+	unsigned char excpfc;	
 
 	msglen = (unsigned short)TCPRESPEXCPMSGLEN;
-	
-	tmp16 = htons(tsfpara->transID);
-	memcpy(tx_buf, &tmp16, sizeof(tmp16));
-	
-	tmp16 = htons(tsfpara->potoID);
-	memcpy(tx_buf+2, &tmp16, sizeof(tmp16));
-	
-	tmp16 = htons(msglen);
-	memcpy(tx_buf+4, &tmp16, sizeof(tmp16));
-	
-	tmp8 = htole16(tsfpara->unitID);
-	memcpy(tx_buf+6, &tmp8, sizeof(tmp8));
-	
+
+	tx_buf->transID = htons(tsfpara->transID);
+	tx_buf->potoID = htons(tsfpara->potoID);
+	tx_buf->msglen = htons(msglen);
+	tx_buf->unitID = tsfpara->unitID;
 	excpfc = tsfpara->fc | EXCPTIONCODE;
-	tmp8 = htole16(excpfc);
-	memcpy(tx_buf+7, &tmp8, sizeof(tmp8));
-	
-	tmp8 = htole16(excp_code);
-	memcpy(tx_buf+8, &tmp8, sizeof(tmp8));
+	tx_buf->fc = excpfc;	
+    tx_buf->ec = excp_code;	
 
 	txlen = TCPRESPEXCPFRMLEN; 
 
 	printf("<Modbus TCP Slave> respond Excption Code");
-		
+        
 	return txlen;
 }
 /*
  * FC 0x01 Read Coil Status respond / FC 0x02 Read Input Status
  */
-int tcp_build_resp_read_status(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc)
+int tcp_build_resp_read_status(struct tcp_frm_rsp *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc)
 {
-	int i;
 	int byte;
 	int txlen;
-	unsigned char tmp8;
-	unsigned short tmp16;
 	unsigned short msglen;
 	unsigned short len;   
 	
@@ -304,26 +254,15 @@ int tcp_build_resp_read_status(unsigned char *tx_buf, struct tcp_frm_para *tsfpa
 	msglen = byte + 2;	
 	tsfpara->msglen = msglen;
 
-	tmp16 = htons(tsfpara->transID);
-	memcpy(tx_buf, &tmp16, sizeof(tmp16));
-	
-	tmp16 = htons(tsfpara->potoID);
-	memcpy(tx_buf+2, &tmp16, sizeof(tmp16));
-	
-	tmp16 = htons(tsfpara->msglen);
-	memcpy(tx_buf+4, &tmp16, sizeof(tmp16));
+	tx_buf->transID = htons(tsfpara->transID);
+	tx_buf->potoID = htons(tsfpara->potoID);
+	tx_buf->msglen = htons(tsfpara->msglen);
+	tx_buf->unitID = tsfpara->unitID;
+	tx_buf->fc = fc;
+	tx_buf->byte = (unsigned char)byte;
 
-	memcpy(tx_buf+6, &tsfpara->unitID, sizeof(tsfpara->unitID));
-	memcpy(tx_buf+7, &fc, sizeof(fc));
-	
-	tmp8 = htole16((unsigned char)byte);
-	memcpy(tx_buf+8, &tmp8, sizeof(tmp8));
+	memset(tx_buf+1, 0, byte);		// tx_buf+1 shift a size of sturct "tcp_frm_rsp" (9 byte)
 
-	tmp8 = 0;
-	for(i = 9; i < txlen; i++){
-		memcpy(tx_buf+i, &tmp8, sizeof(tmp8));
-	}
-	
 	if(fc == READCOILSTATUS){
 		printf("<Modbus TCP Slave> respond Read Coil Status\n");
 	}else{
@@ -335,14 +274,11 @@ int tcp_build_resp_read_status(unsigned char *tx_buf, struct tcp_frm_para *tsfpa
 /*
  * FC 0x03 Read Holding Registers respond / FC 0x04 Read Input Registers respond
  */ 
-int tcp_build_resp_read_regs(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc)
+int tcp_build_resp_read_regs(struct tcp_frm_rsp *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc)
 {
-	int i;
 	int byte;
 	int txlen;
 	unsigned int num_regs;
-	unsigned char tmp8;
-	unsigned short tmp16;
 	unsigned short msglen;
 
 	num_regs = tsfpara->len;
@@ -352,28 +288,16 @@ int tcp_build_resp_read_regs(unsigned char *tx_buf, struct tcp_frm_para *tsfpara
 	msglen = byte + 2;  
 	tsfpara->msglen = msglen;
 
-	tmp16 = htons(tsfpara->transID);
-	memcpy(tx_buf, &tmp16, sizeof(tmp16));
+	tx_buf->transID = htons(tsfpara->transID);
+	tx_buf->potoID = htons(tsfpara->potoID);
+	tx_buf->msglen = htons(tsfpara->msglen);
+	tx_buf->unitID = tsfpara->unitID;
+	tx_buf->fc = fc;
+	tx_buf->byte = (unsigned char)byte;
+		
+	memset(tx_buf+1, 0, byte);		// tx_buf+1 shift a size of struct "tcp_frm_rsp" (9 byte)
 	
-	tmp16 = htons(tsfpara->potoID);
-	memcpy(tx_buf+2, &tmp16, sizeof(tmp16));
-	
-	tmp16 = htons(tsfpara->msglen);
-	memcpy(tx_buf+4, &tmp16, sizeof(tmp16));
 
-	tmp8 = htole16(tsfpara->unitID);
-	memcpy(tx_buf+6, &tmp8, sizeof(tmp8));
-	
-	tmp8 = htole16(fc);
-	memcpy(tx_buf+7, &tmp8, sizeof(tmp8));
-	
-	tmp8 = htole16((unsigned char)byte);
-	memcpy(tx_buf+8, &tmp8, sizeof(tmp8));
-
-	tmp16 = 0;
-	for(i = 9; i < txlen; i+=2){					// a register content need 2 byte
-		memcpy(tx_buf+i, &tmp16, sizeof(tmp16));
-	}
 	
 	if(fc == READHOLDINGREGS){
 		printf("<Modbus TCP Slave> respond Read Holding Registers\n");
@@ -386,36 +310,21 @@ int tcp_build_resp_read_regs(unsigned char *tx_buf, struct tcp_frm_para *tsfpara
 /* 
  * FC 0x05 Force Single Coli respond / FC 0x06 Preset Single Register respond
  */ 
-int tcp_build_resp_set_single(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc)
+int tcp_build_resp_set_single(struct tcp_frm *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc)
 {
 	int txlen;
-	unsigned char tmp8;
-	unsigned short tmp16;
 
 	tsfpara->msglen = (unsigned short)TCPRESPSETSIGNALLEN;
 	
 	txlen = TCPRESPSETSIGNALLEN + 6;
 
-	tmp16 = htons(tsfpara->transID);
-	memcpy(tx_buf, &tmp16, sizeof(tmp16));
-	
-	tmp16 = htons(tsfpara->potoID);
-	memcpy(tx_buf+2, &tmp16, sizeof(tmp16));
-	
-	tmp16 = htons(tsfpara->msglen);
-	memcpy(tx_buf+4, &tmp16, sizeof(tmp16));
-
-	tmp8 = htole16(tsfpara->unitID);
-	memcpy(tx_buf+6, &tmp8, sizeof(tmp8));
-   
-	tmp8 = htole16(fc);
-	memcpy(tx_buf+7, &tmp8, sizeof(tmp8));
-
-	tmp16 = htons(tsfpara->straddr);
-	memcpy(tx_buf+8 ,&tmp16, sizeof(tmp16));
- 
-	tmp16 = htons(tsfpara->act);
-	memcpy(tx_buf+10, &tmp16, sizeof(tmp16));
+	tx_buf->transID = htons(tsfpara->transID);
+	tx_buf->potoID = htons(tsfpara->potoID);
+	tx_buf->msglen = htons(tsfpara->msglen);
+	tx_buf->unitID = tsfpara->unitID;
+	tx_buf->fc = fc;
+	tx_buf->straddr = htons(tsfpara->straddr);
+	tx_buf->act = htons(tsfpara->act);
 	
 	if(fc == FORCESIGLEREGS){
 		printf("<Modbus TCP Slave> respond Force Single Coli\n");

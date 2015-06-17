@@ -52,7 +52,7 @@ struct frm_para {
 	unsigned int act;			// The status to write (in FC 0x05/0x06) 
 };
 	
-/* modbus TCP frame */
+/* save modbus TCP parameter */
 struct tcp_frm_para {
 	unsigned short transID;
 	unsigned short potoID;
@@ -64,6 +64,37 @@ struct tcp_frm_para {
 	unsigned short len;
 };
 
+/* modbus TCP Query & fc = 05/06 frame */
+struct tcp_frm{
+	unsigned short transID;
+	unsigned short potoID;
+	unsigned short msglen;
+	unsigned char unitID;
+	unsigned char fc;
+	unsigned short straddr;
+	unsigned short act;
+}__attribute__((packed));
+
+/* modbus TCP respond excption frame */
+struct tcp_frm_excp {
+	unsigned short transID;
+	unsigned short potoID;
+	unsigned short msglen;
+	unsigned char unitID;
+	unsigned char fc;
+	unsigned char ec;
+}__attribute__((packed));
+	
+/* modbus TCP respond fc = 01/02/03/04 frame */
+struct tcp_frm_rsp {
+	unsigned short transID;
+	unsigned short potoID;
+	unsigned short msglen;
+	unsigned char unitID;
+	unsigned char fc;
+	unsigned char byte;
+}__attribute__((packed));
+	
 void build_rtu_frm(unsigned char *dst_buf, unsigned char *src_buf, unsigned char lenth);
 
 int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara);
@@ -75,16 +106,15 @@ int ser_build_resp_read_status(unsigned char *tx_buf, struct frm_para *sfpara, u
 int ser_build_resp_read_regs(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char fc);
 int ser_build_resp_set_single(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char fc);
 
-int tcp_query_parser(unsigned char *rx_buf, struct tcp_frm_para *tsfpara);
+int tcp_query_parser(struct tcp_frm *rx_buf, struct tcp_frm_para *tsfpara);
 int tcp_resp_parser(unsigned char *rx_buf, struct tcp_frm_para *tmfpara, int rlen);
-int tcp_chk_pack_dest(unsigned char *rx_buf, struct tcp_frm_para *tsfpara);
+int tcp_chk_pack_dest(struct tcp_frm *rx_buf, struct tcp_frm_para *tsfpara);
 
-int tcp_build_query(unsigned char *tx_buf, struct tcp_frm_para *tmfpara);
-int tcp_build_resp_excp(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, unsigned char excp_code);
-int tcp_build_resp_read_status(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc);
-int tcp_build_resp_read_regs(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc);
-int tcp_build_resp_set_single(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc);
-
+int tcp_build_query(struct tcp_frm *tx_buf, struct tcp_frm_para *tmfpara);
+int tcp_build_resp_excp(struct tcp_frm_excp *tx_buf, struct tcp_frm_para *tsfpara, unsigned char excp_code);
+int tcp_build_resp_read_status(struct tcp_frm_rsp *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc);
+int tcp_build_resp_read_regs(struct tcp_frm_rsp *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc);
+int tcp_build_resp_set_single(struct tcp_frm *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc);
 
 #endif
 

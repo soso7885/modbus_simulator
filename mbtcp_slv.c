@@ -16,6 +16,7 @@
 #define BACKLOG		10
 
 int _set_para(struct tcp_frm_para *tsfpara){
+	int tmp;
 	int cmd;	
 	unsigned short straddr;
 	
@@ -56,9 +57,18 @@ int _set_para(struct tcp_frm_para *tsfpara){
 	printf("Setting Start addr : ");
 	scanf("%hu", &straddr);
 	tsfpara->straddr = straddr - 1;
-	if(cmd < 5){
+	if(cmd == 1 || cmd == 2){
 		printf("Setting address shift length : ");
 		scanf("%hu", &tsfpara->len);
+	}else{
+		printf("Setting address shift length : ");
+		scanf("%d", &tmp);
+		if(tmp > 100){
+			printf("Please DO NOT exceed 100 !\n");
+			exit(0);
+		}else{
+			tsfpara->len = (unsigned short)tmp;
+		}
 	}
 
 	return 0;
@@ -71,22 +81,22 @@ int _choose_resp_frm(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, int re
 	if(!ret){
 		switch(tsfpara->fc){
 			case READCOILSTATUS:
-				txlen = tcp_build_resp_read_status(tx_buf, tsfpara, READCOILSTATUS);
+				txlen = tcp_build_resp_read_status((struct tcp_frm_rsp *)tx_buf, tsfpara, READCOILSTATUS);
 				break;
 			case READINPUTSTATUS:
-				txlen = tcp_build_resp_read_status(tx_buf, tsfpara, READINPUTSTATUS);
+				txlen = tcp_build_resp_read_status((struct tcp_frm_rsp *)tx_buf, tsfpara, READINPUTSTATUS);
 				break;
 			case READHOLDINGREGS:
-				txlen = tcp_build_resp_read_regs(tx_buf, tsfpara, READHOLDINGREGS);
+				txlen = tcp_build_resp_read_regs((struct tcp_frm_rsp *)tx_buf, tsfpara, READHOLDINGREGS);
 				break;
 			case READINPUTREGS:
-				txlen = tcp_build_resp_read_regs(tx_buf, tsfpara, READINPUTREGS);
+				txlen = tcp_build_resp_read_regs((struct tcp_frm_rsp *)tx_buf, tsfpara, READINPUTREGS);
 				break;
 			case FORCESIGLEREGS:
-				txlen = tcp_build_resp_set_single(tx_buf, tsfpara, FORCESIGLEREGS);
+				txlen = tcp_build_resp_set_single((struct tcp_frm *)tx_buf, tsfpara, FORCESIGLEREGS);
 				break;
 			case PRESETEXCPSTATUS:
-				txlen = tcp_build_resp_set_single(tx_buf, tsfpara, PRESETEXCPSTATUS);
+				txlen = tcp_build_resp_set_single((struct tcp_frm *)tx_buf, tsfpara, PRESETEXCPSTATUS);
 				break;
 			default:
 				printf("<Modbus TCP Slave> unknown function code : %d\n", tsfpara->fc);
@@ -94,11 +104,11 @@ int _choose_resp_frm(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, int re
 				return -1;
 			}
 	}else if(ret == -1){
-		txlen = tcp_build_resp_excp(tx_buf, tsfpara, EXCPILLGFUNC);
+		txlen = tcp_build_resp_excp((struct tcp_frm_excp *)tx_buf, tsfpara, EXCPILLGFUNC);
 	}else if(ret == -2){
-		txlen = tcp_build_resp_excp(tx_buf, tsfpara, EXCPILLGDATAADDR);
+		txlen = tcp_build_resp_excp((struct tcp_frm_excp *)tx_buf, tsfpara, EXCPILLGDATAADDR);
 	}else if(ret == -3){
-		txlen = tcp_build_resp_excp(tx_buf, tsfpara, EXCPILLGDATAVAL);
+		txlen = tcp_build_resp_excp((struct tcp_frm_excp *)tx_buf, tsfpara, EXCPILLGDATAVAL);
 	}
 
 	return txlen;
@@ -241,7 +251,7 @@ int _conn_work(struct tcp_frm_para *tsfpara, int rskfd, int *lock)
 				break;
 			}
 
-			ret = tcp_chk_pack_dest(rx_buf, tsfpara);
+			ret = tcp_chk_pack_dest((struct tcp_frm *)rx_buf, tsfpara);
 			if(ret == -1){
 				memset(rx_buf, 0, FRMLEN);
 				sleep(3);
@@ -253,7 +263,7 @@ int _conn_work(struct tcp_frm_para *tsfpara, int rskfd, int *lock)
 			}
 			printf(" ## rlen = %d ##\n", rlen );
 
-			ret = tcp_query_parser(rx_buf, tsfpara);
+			ret = tcp_query_parser((struct tcp_frm *)rx_buf, tsfpara);
 			*lock = 1;
 		}
 			
@@ -262,17 +272,17 @@ int _conn_work(struct tcp_frm_para *tsfpara, int rskfd, int *lock)
 			if(txlen == -1){
 				break;
 			}
-			/* show send respond *//*
+			/* show send respond */
 			printf("send resp :");
 			for(i = 0; i < txlen; i++){
 				printf(" %x |", tx_buf[i]);
 			}
 			printf(" ## txlen = %d ##\n", txlen);
-			*//* show end */
+			/* show end */
 			wlen = send(rskfd, tx_buf, txlen, 0);
 			if(wlen != txlen){
 				printf("<Modbus TCP Slave> send respond incomplete !!\n");
-				continue;
+				break;
 			}
 			printf("txlen = %d\n", wlen);
 		}
