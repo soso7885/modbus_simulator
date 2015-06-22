@@ -142,7 +142,6 @@ int main(int argc, char **argv)
 	int wlen;
 	int rlen;
 	int txlen;
-	int i;
 	char *path;
 	int lock = 0;
 	fd_set wfds;
@@ -207,6 +206,7 @@ int main(int argc, char **argv)
 			}
 			lock = 1;
 			/* Show recv query *//*
+			int i;
 			printf("<Modbus Serial Slave> Recv query :");
 			for(i = 0; i < RECVLEN; i++){
 				printf(" %x |", rx_buf[i]);

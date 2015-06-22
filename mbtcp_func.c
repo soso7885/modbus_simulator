@@ -253,7 +253,6 @@ int tcp_build_resp_read_status(struct tcp_frm_rsp *tx_buf, struct tcp_frm_para *
 	txlen = byte + 9;
 	msglen = byte + 2;	
 	tsfpara->msglen = msglen;
-
 	tx_buf->transID = htons(tsfpara->transID);
 	tx_buf->potoID = htons(tsfpara->potoID);
 	tx_buf->msglen = htons(tsfpara->msglen);
@@ -263,11 +262,7 @@ int tcp_build_resp_read_status(struct tcp_frm_rsp *tx_buf, struct tcp_frm_para *
 
 	memset(tx_buf+1, 0, byte);		// tx_buf+1 shift a size of sturct "tcp_frm_rsp" (9 byte)
 
-	if(fc == READCOILSTATUS){
-		printf("<Modbus TCP Slave> respond Read Coil Status\n");
-	}else{
-		printf("<Modbus TCP Slave> respond Read Input Status\n");
-	}
+	printf("<Modbus TCP Slave> respond Read %s Status\n", fc==READCOILSTATUS?"Coil":"Input");
    
 	return txlen;
 }
@@ -283,7 +278,6 @@ int tcp_build_resp_read_regs(struct tcp_frm_rsp *tx_buf, struct tcp_frm_para *ts
 
 	num_regs = tsfpara->len;
 	byte = num_regs * 2;
-
 	txlen = byte + 9;
 	msglen = byte + 2;  
 	tsfpara->msglen = msglen;
@@ -297,14 +291,8 @@ int tcp_build_resp_read_regs(struct tcp_frm_rsp *tx_buf, struct tcp_frm_para *ts
 		
 	memset(tx_buf+1, 0, byte);		// tx_buf+1 shift a size of struct "tcp_frm_rsp" (9 byte)
 	
-
+	printf("<Modbus TCP Slave> respond Read %s Registers\n", fc==READHOLDINGREGS?"Holding":"Input");
 	
-	if(fc == READHOLDINGREGS){
-		printf("<Modbus TCP Slave> respond Read Holding Registers\n");
-	}else{
-		printf("<Modbus TCP Slave> respond Read Input Registers\n");
-	}
-   
 	return txlen;
 }
 /* 
@@ -314,8 +302,7 @@ int tcp_build_resp_set_single(struct tcp_frm *tx_buf, struct tcp_frm_para *tsfpa
 {
 	int txlen;
 
-	tsfpara->msglen = (unsigned short)TCPRESPSETSIGNALLEN;
-	
+	tsfpara->msglen = (unsigned short)TCPRESPSETSIGNALLEN;	
 	txlen = TCPRESPSETSIGNALLEN + 6;
 
 	tx_buf->transID = htons(tsfpara->transID);
@@ -326,12 +313,8 @@ int tcp_build_resp_set_single(struct tcp_frm *tx_buf, struct tcp_frm_para *tsfpa
 	tx_buf->straddr = htons(tsfpara->straddr);
 	tx_buf->act = htons(tsfpara->act);
 	
-	if(fc == FORCESIGLEREGS){
-		printf("<Modbus TCP Slave> respond Force Single Coli\n");
-	}else{
-		printf("<Modbus TCP Slave> respond Preset Single Register\n");
-	}  
- 
+	printf("<Modbus TCP Slave> respond %s\n", fc==FORCESIGLEREGS?"Force Single Coli":"Preset Single Register");
+	 
 	return txlen;
 }
 

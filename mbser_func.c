@@ -283,11 +283,8 @@ int ser_build_resp_read_status(unsigned char *tx_buf, struct frm_para *sfpara, u
 	for(i = 3; i < src_len; i++){	
 		src[i] = 0;
 	}
-	if(fc == READCOILSTATUS){
-		printf("<Modbus Serial Slave> respond Read Coil Status\n");
-	}else{
-		printf("<Modbus Serial Slave> respond Read Input Status\n");
-	}
+	
+	printf("<Modbus Serial Slave> respond Read %s Status\n", fc==READCOILSTATUS?"Coil":"Input");
 
 	build_rtu_frm(tx_buf, src, src_len);
 	src_len += 2;
@@ -317,11 +314,8 @@ int ser_build_resp_read_regs(unsigned char *tx_buf, struct frm_para *sfpara, uns
 	for(i = 3; i < src_len; i++){   
 		src[i] = 0;
 	}
-	if(fc == READHOLDINGREGS){
-		printf("<Modbus Serial Slave> respond Read Holding Registers \n");
-	}else{
-		printf("<Modbus Serial Slave> respond Read Input Registers \n");
-	}
+
+	printf("<Modbus Serial Slave> respond Read %s Registers\n", fc==READHOLDINGREGS?"Holding":"Input");
 	
 	build_rtu_frm(tx_buf, src, src_len);
 	src_len += 2;
@@ -351,12 +345,8 @@ int ser_build_resp_set_single(unsigned char *tx_buf, struct frm_para *sfpara, un
 	src[4] = act >> 8;				// active Hi
 	src[5] = act;					// active Lo
 	src_len = 6;
-	
-	if(fc == FORCESIGLEREGS){
-		printf("<Modbus Serial Slave> respond Force Single Coli \n");
-	}else{
-		printf("<Modbus Serial Slave> respond Preset Single Register \n");
-	}
+
+	printf("<Modbus Serial Slave> respond %s\n", fc==FORCESIGLEREGS?"Force Single Coli":"Preset Single Register");
 	
 	build_rtu_frm(tx_buf, src, src_len);
 	src_len += 2;

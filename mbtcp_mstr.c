@@ -137,7 +137,6 @@ int _create_sk_cli(char *addr)
 
 int main(int argc, char **argv)
 {
-	int i;
 	int skfd;
 	int ret;
 	int retval;
@@ -191,6 +190,7 @@ int main(int argc, char **argv)
 		if(FD_ISSET(skfd, &wfds) && !lock){		
 			tcp_build_query((struct tcp_frm *)tx_buf, &tmfpara);
             /* show send query *//* 
+			int i;
             printf("<Modbus TCP Master> send query : ");
             for(i = 0; i < TCPSENDQUERYLEN; i++ ){
                 printf("%x | ", tx_buf[i]);

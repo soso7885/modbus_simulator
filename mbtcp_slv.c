@@ -118,7 +118,7 @@ int _choose_resp_frm(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, int re
 	return txlen;
 }
 
-int _create_sk_srvr(void)
+int _create_sk_svr(void)
 {
 	int skfd;
 	int ret;
@@ -312,7 +312,7 @@ int main()
 		exit(0);
 	}
 
-	skfd = _create_sk_srvr();
+	skfd = _create_sk_svr();
 	if(skfd == -1){
 		printf("<Modbus Tcp Slave> god damn wried !!\n");
 		exit(0);
