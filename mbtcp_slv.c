@@ -9,6 +9,7 @@
 #include <sys/time.h>
 #include <sys/select.h> 
 #include <arpa/inet.h>
+#include <pthread.h>
 
 #include "mbus.h" 
 
@@ -219,19 +220,30 @@ int _sk_accept(int skfd)
 	return rskfd;
 }
 
-int _conn_work(struct tcp_frm_para *tsfpara, int rskfd, int *lock)
+void *work_thread(void *data)
 {
 	int i;
 	int wlen;
 	int txlen;
 	int rlen;
 	int retval;
-	int ret;	
+	int ret;
+	int rskfd;
+	int lock;	
 	fd_set rfds;
 	fd_set wfds;
 	struct timeval tv;
+	struct thread_pack *tpack;
+	struct tcp_frm_para *tsfpara;
 	unsigned char rx_buf[FRMLEN];
 	unsigned char tx_buf[FRMLEN];
+
+	tpack = (struct thread_pack *)data;
+	rskfd = tpack->rskfd;
+	tsfpara = tpack->tsfpara;
+	lock = 0;
+	printf("<Modbus Tcp Slave> Create work thread, connect fd = %d | thread ID = %lu\n",
+			 rskfd, pthread_self());
 
 	do{
 		FD_ZERO(&rfds);
@@ -252,7 +264,8 @@ int _conn_work(struct tcp_frm_para *tsfpara, int rskfd, int *lock)
 			rlen = recv(rskfd, rx_buf, sizeof(rx_buf), 0);
 			if(rlen < 1){
 				printf("<Modbus Tcp Slave> disconnect (rlen = %d)...\n", rlen);
-				break;
+				close(rskfd);
+				pthread_exit(NULL);
 			}
 
 			ret = tcp_chk_pack_dest((struct tcp_frm *)rx_buf, tsfpara);
@@ -267,11 +280,11 @@ int _conn_work(struct tcp_frm_para *tsfpara, int rskfd, int *lock)
 			printf(" ## rlen = %d ##\n", rlen );
 
 			ret = tcp_query_parser((struct tcp_frm *)rx_buf, tsfpara);
-			*lock = 1;
+			lock = 1;
 		}
 			
-		if(FD_ISSET(rskfd, &wfds) && *lock){
-			txlen = _choose_resp_frm(tx_buf, tsfpara, ret, lock);
+		if(FD_ISSET(rskfd, &wfds) && lock){
+			txlen = _choose_resp_frm(tx_buf, tsfpara, ret, &lock);
 			if(txlen == -1){
 				break;
 			}
@@ -290,12 +303,12 @@ int _conn_work(struct tcp_frm_para *tsfpara, int rskfd, int *lock)
 			printf("txlen = %d\n", wlen);
 		}
 
-		*lock = 0;
+		lock = 0;
 		sleep(2);
 
 	}while(1);
 
-	return 0;
+	pthread_exit(NULL);
 }
 	
 int main()
@@ -303,8 +316,9 @@ int main()
 	int skfd;
 	int rskfd;
 	int ret;
-	int lock;
+	pthread_t tid;
 	struct tcp_frm_para tsfpara;
+	struct thread_pack tpack;
 
 	ret = _set_para(&tsfpara);
 	if(ret == -1){
@@ -324,13 +338,14 @@ int main()
 			printf("<Modbus Tcp Slave> god damn wried !!\n");
 			continue;
 		}
+	
+		tpack.rskfd = rskfd;
+		tpack.tsfpara = &tsfpara;
 		
-		lock = 0;
-		
-		ret = _conn_work(&tsfpara, rskfd, &lock);
-
-		close(rskfd);
-		printf("<Modbus TCP Slave> Close socket !!\n");
+		ret = pthread_create(&tid, NULL, work_thread, (void *)&tpack);	
+		if(ret != 0){
+			handle_error_en(ret, "pthread_create");
+		}	
 	}while(1);	
 	
 	close(skfd);

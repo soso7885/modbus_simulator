@@ -29,6 +29,9 @@
 
 #define FRMLEN 260  /* | 1byte | 1byte | 0~255byte | 2byte | */
 
+
+#define handle_error_en(en, msg) \
+				do { errno = en; perror(msg); exit(EXIT_FAILURE); } while (0)
 static inline int carry(int bdiv, int div)
 {
 	int tmp;
@@ -42,6 +45,12 @@ static inline int carry(int bdiv, int div)
 
 	return ans;
 }
+
+/* mutithread para */
+struct thread_pack {
+	struct tcp_frm_para *tsfpara;
+	int rskfd;
+};	
 
 /* modbus SERIAL frame */
 struct frm_para {
