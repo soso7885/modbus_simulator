@@ -28,10 +28,9 @@
 #define PRESETEXCPSTATUS_EXCP	134
 
 #define FRMLEN 260  /* | 1byte | 1byte | 0~255byte | 2byte | */
-
-
 #define handle_error_en(en, msg) \
 				do { errno = en; perror(msg); exit(EXIT_FAILURE); } while (0)
+
 static inline int carry(int bdiv, int div)
 {
 	int tmp;
@@ -46,12 +45,14 @@ static inline int carry(int bdiv, int div)
 	return ans;
 }
 
-/* mutithread para */
+/* mutithread parameter */
 struct thread_pack {
 	struct tcp_frm_para *tsfpara;
+	struct tcp_tmp_frm *tmpara;
 	int rskfd;
-};	
-
+	pthread_mutex_t mutex;
+};
+	
 /* modbus SERIAL frame */
 struct frm_para {
 	unsigned int slvID;
@@ -61,6 +62,12 @@ struct frm_para {
 	unsigned int act;			// The status to write (in FC 0x05/0x06) 
 };
 	
+struct tcp_tmp_frm {
+	unsigned short straddr;
+	unsigned short act;
+	unsigned short len;
+};
+
 /* save modbus TCP parameter */
 struct tcp_frm_para {
 	unsigned short transID;
@@ -116,15 +123,15 @@ int ser_build_resp_read_status(unsigned char *tx_buf, struct frm_para *sfpara, u
 int ser_build_resp_read_regs(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char fc);
 int ser_build_resp_set_single(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char fc);
 
-int tcp_query_parser(struct tcp_frm *rx_buf, struct tcp_frm_para *tsfpara);
+int tcp_query_parser(struct tcp_frm *rx_buf, struct thread_pack *tpack);
 int tcp_resp_parser(unsigned char *rx_buf, struct tcp_frm_para *tmfpara, int rlen);
 int tcp_chk_pack_dest(struct tcp_frm *rx_buf, struct tcp_frm_para *tsfpara);
 
 int tcp_build_query(struct tcp_frm *tx_buf, struct tcp_frm_para *tmfpara);
 int tcp_build_resp_excp(struct tcp_frm_excp *tx_buf, struct tcp_frm_para *tsfpara, unsigned char excp_code);
-int tcp_build_resp_read_status(struct tcp_frm_rsp *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc);
-int tcp_build_resp_read_regs(struct tcp_frm_rsp *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc);
-int tcp_build_resp_set_single(struct tcp_frm *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc);
+int tcp_build_resp_read_status(struct tcp_frm_rsp *tx_buf, struct thread_pack *tpack, unsigned char fc);
+int tcp_build_resp_read_regs(struct tcp_frm_rsp *tx_buf, struct thread_pack *tpack, unsigned char fc);
+int tcp_build_resp_set_single(struct tcp_frm *tx_buf, struct thread_pack *tpack, unsigned char fc);
 
 #endif
 

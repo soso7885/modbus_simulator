@@ -3,18 +3,24 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <endian.h>
+#include <pthread.h>
 
 #include "mbus.h"
 /*
  * Analyze modebus TCP query
  */
-int tcp_query_parser(struct tcp_frm *rx_buf, struct tcp_frm_para *tsfpara)
+int tcp_query_parser(struct tcp_frm *rx_buf, struct thread_pack *tpack)
 {
 	unsigned short qtransID;
 	unsigned short qmsglen;
 	unsigned char qfc, rfc;
 	unsigned short qstraddr, rstraddr;
 	unsigned short qact, rlen;
+	struct tcp_frm_para *tsfpara;
+	struct tcp_tmp_frm *tmpara;
+
+	tsfpara = tpack->tsfpara;
+	tmpara = tpack->tmpara;
 	
 	qtransID = be16toh(rx_buf->transID);
 	tsfpara->transID = qtransID;
@@ -40,7 +46,9 @@ int tcp_query_parser(struct tcp_frm *rx_buf, struct tcp_frm_para *tsfpara)
 	
 	if(!(rfc ^ FORCESIGLEREGS)){                // FC = 0x05, get the status to write(on/off)
 		if(!qact || qact == 0xff<<8){
-			tsfpara->act = qact;
+			pthread_mutex_lock(&(tpack->mutex));	
+			tmpara->act = qact;	//lock !
+			pthread_mutex_unlock(&(tpack->mutex));
 		}else{
 			printf("<Modbus TCP Slave> Query set the status to write fuckin worng(fc = 0x05)\n");
 			return -3;						  
@@ -56,11 +64,15 @@ int tcp_query_parser(struct tcp_frm *rx_buf, struct tcp_frm_para *tsfpara)
 			printf(", query addr : %x | resp addr : %x\n", qstraddr, rstraddr);
 			return -2;
 		}
-		tsfpara->act = qact;
+		pthread_mutex_lock(&(tpack->mutex));
+		tmpara->act = qact;	// lock!
+		pthread_mutex_unlock(&(tpack->mutex));
 	}else{
 		if((qstraddr + qact <= rstraddr + rlen) && (qstraddr >= rstraddr)){ // Query addr+shift len must smaller than the contain we set in addr+shift len
-			tsfpara->straddr = qstraddr;
-			tsfpara->len = qact;
+			pthread_mutex_lock(&(tpack->mutex));
+			tmpara->straddr = qstraddr;	// lock!
+			tmpara->len = qact;		// lock!
+			pthread_mutex_unlock(&(tpack->mutex));
 		}else{
 			printf("<Modbus TCP Slave> The address have no contain\n");
 			printf("Query addr : %x, shift len : %x | Respond addr: %x, shift len : %x\n",
@@ -241,22 +253,22 @@ int tcp_build_resp_excp(struct tcp_frm_excp *tx_buf, struct tcp_frm_para *tsfpar
 /*
  * FC 0x01 Read Coil Status respond / FC 0x02 Read Input Status
  */
-int tcp_build_resp_read_status(struct tcp_frm_rsp *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc)
+int tcp_build_resp_read_status(struct tcp_frm_rsp *tx_buf, struct thread_pack *tpack, unsigned char fc)
 {
 	int byte;
 	int txlen;
 	unsigned short msglen;
 	unsigned short len;   
-	
-	len = tsfpara->len;
+
+	len = tpack->tmpara->len;
 	byte = carry((int)len, 8);
 	txlen = byte + 9;
 	msglen = byte + 2;	
-	tsfpara->msglen = msglen;
-	tx_buf->transID = htons(tsfpara->transID);
-	tx_buf->potoID = htons(tsfpara->potoID);
-	tx_buf->msglen = htons(tsfpara->msglen);
-	tx_buf->unitID = tsfpara->unitID;
+	tpack->tsfpara->msglen = msglen;
+	tx_buf->transID = htons(tpack->tsfpara->transID);
+	tx_buf->potoID = htons(tpack->tsfpara->potoID);
+	tx_buf->msglen = htons(tpack->tsfpara->msglen);
+	tx_buf->unitID = tpack->tsfpara->unitID;
 	tx_buf->fc = fc;
 	tx_buf->byte = (unsigned char)byte;
 
@@ -269,23 +281,23 @@ int tcp_build_resp_read_status(struct tcp_frm_rsp *tx_buf, struct tcp_frm_para *
 /*
  * FC 0x03 Read Holding Registers respond / FC 0x04 Read Input Registers respond
  */ 
-int tcp_build_resp_read_regs(struct tcp_frm_rsp *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc)
+int tcp_build_resp_read_regs(struct tcp_frm_rsp *tx_buf, struct thread_pack *tpack, unsigned char fc)
 {
 	int byte;
 	int txlen;
 	unsigned int num_regs;
 	unsigned short msglen;
 
-	num_regs = tsfpara->len;
+	num_regs = tpack->tmpara->len;
 	byte = num_regs * 2;
 	txlen = byte + 9;
 	msglen = byte + 2;  
-	tsfpara->msglen = msglen;
+	tpack->tsfpara->msglen = msglen;
 
-	tx_buf->transID = htons(tsfpara->transID);
-	tx_buf->potoID = htons(tsfpara->potoID);
-	tx_buf->msglen = htons(tsfpara->msglen);
-	tx_buf->unitID = tsfpara->unitID;
+	tx_buf->transID = htons(tpack->tsfpara->transID);
+	tx_buf->potoID = htons(tpack->tsfpara->potoID);
+	tx_buf->msglen = htons(tpack->tsfpara->msglen);
+	tx_buf->unitID = tpack->tsfpara->unitID;
 	tx_buf->fc = fc;
 	tx_buf->byte = (unsigned char)byte;
 		
@@ -298,20 +310,20 @@ int tcp_build_resp_read_regs(struct tcp_frm_rsp *tx_buf, struct tcp_frm_para *ts
 /* 
  * FC 0x05 Force Single Coli respond / FC 0x06 Preset Single Register respond
  */ 
-int tcp_build_resp_set_single(struct tcp_frm *tx_buf, struct tcp_frm_para *tsfpara, unsigned char fc)
+int tcp_build_resp_set_single(struct tcp_frm *tx_buf, struct thread_pack *tpack, unsigned char fc)
 {
 	int txlen;
 
-	tsfpara->msglen = (unsigned short)TCPRESPSETSIGNALLEN;	
+	tpack->tsfpara->msglen = (unsigned short)TCPRESPSETSIGNALLEN;	
 	txlen = TCPRESPSETSIGNALLEN + 6;
 
-	tx_buf->transID = htons(tsfpara->transID);
-	tx_buf->potoID = htons(tsfpara->potoID);
-	tx_buf->msglen = htons(tsfpara->msglen);
-	tx_buf->unitID = tsfpara->unitID;
+	tx_buf->transID = htons(tpack->tsfpara->transID);
+	tx_buf->potoID = htons(tpack->tsfpara->potoID);
+	tx_buf->msglen = htons(tpack->tsfpara->msglen);
+	tx_buf->unitID = tpack->tsfpara->unitID;
 	tx_buf->fc = fc;
-	tx_buf->straddr = htons(tsfpara->straddr);
-	tx_buf->act = htons(tsfpara->act);
+//	tx_buf->straddr = htons(tpack->tmpara->straddr);
+//	tx_buf->act = htons(tpack->tmpara->act);
 	
 	printf("<Modbus TCP Slave> respond %s\n", fc==FORCESIGLEREGS?"Force Single Coli":"Preset Single Register");
 	 

@@ -71,40 +71,38 @@ int _set_para(struct tcp_frm_para *tsfpara){
 		}else{
 			tsfpara->len = (unsigned short)tmp;
 		}
-	}else{
-		printf("Setting shift length : ");
-		scanf("%hu", &tsfpara->len);
 	}
-
 	return 0;
 }
 
-int _choose_resp_frm(unsigned char *tx_buf, struct tcp_frm_para *tsfpara, int ret, int *lock)
+int _choose_resp_frm(unsigned char *tx_buf, struct thread_pack *tpack, int ret, int *lock)
 {
 	int txlen;
+	struct tcp_frm_para *tsfpara;
 	
+	tsfpara = tpack->tsfpara;	
 	if(!ret){
 		switch(tsfpara->fc){
 			case READCOILSTATUS:
-				txlen = tcp_build_resp_read_status((struct tcp_frm_rsp *)tx_buf, tsfpara, READCOILSTATUS);
+				txlen = tcp_build_resp_read_status((struct tcp_frm_rsp *)tx_buf, tpack, READCOILSTATUS);
 				break;
 			case READINPUTSTATUS:
-				txlen = tcp_build_resp_read_status((struct tcp_frm_rsp *)tx_buf, tsfpara, READINPUTSTATUS);
+				txlen = tcp_build_resp_read_status((struct tcp_frm_rsp *)tx_buf, tpack, READINPUTSTATUS);
 				break;
 			case READHOLDINGREGS:
-				txlen = tcp_build_resp_read_regs((struct tcp_frm_rsp *)tx_buf, tsfpara, READHOLDINGREGS);
+				txlen = tcp_build_resp_read_regs((struct tcp_frm_rsp *)tx_buf, tpack, READHOLDINGREGS);
 				break;
 			case READINPUTREGS:
-				txlen = tcp_build_resp_read_regs((struct tcp_frm_rsp *)tx_buf, tsfpara, READINPUTREGS);
+				txlen = tcp_build_resp_read_regs((struct tcp_frm_rsp *)tx_buf, tpack, READINPUTREGS);
 				break;
 			case FORCESIGLEREGS:
-				txlen = tcp_build_resp_set_single((struct tcp_frm *)tx_buf, tsfpara, FORCESIGLEREGS);
+				txlen = tcp_build_resp_set_single((struct tcp_frm *)tx_buf, tpack, FORCESIGLEREGS);
 				break;
 			case PRESETEXCPSTATUS:
-				txlen = tcp_build_resp_set_single((struct tcp_frm *)tx_buf, tsfpara, PRESETEXCPSTATUS);
+				txlen = tcp_build_resp_set_single((struct tcp_frm *)tx_buf, tpack, PRESETEXCPSTATUS);
 				break;
 			default:
-				printf("<Modbus TCP Slave> unknown function code : %d\n", tsfpara->fc);
+				printf("<Modbus TCP Slave> unknown function code : %d\n", tpack->tsfpara->fc);
 				sleep(2);
 				return -1;
 			}
@@ -241,6 +239,7 @@ void *work_thread(void *data)
 	tpack = (struct thread_pack *)data;
 	rskfd = tpack->rskfd;
 	tsfpara = tpack->tsfpara;
+
 	lock = 0;
 	printf("<Modbus Tcp Slave> Create work thread, connect fd = %d | thread ID = %lu\n",
 			 rskfd, pthread_self());
@@ -278,13 +277,13 @@ void *work_thread(void *data)
 				printf("%x | ", rx_buf[i]);
 			}
 			printf(" ## rlen = %d ##\n", rlen );
-
-			ret = tcp_query_parser((struct tcp_frm *)rx_buf, tsfpara);
+			
+			ret = tcp_query_parser((struct tcp_frm *)rx_buf, tpack);
 			lock = 1;
 		}
 			
 		if(FD_ISSET(rskfd, &wfds) && lock){
-			txlen = _choose_resp_frm(tx_buf, tsfpara, ret, &lock);
+			txlen = _choose_resp_frm(tx_buf, tpack, ret, &lock);
 			if(txlen == -1){
 				break;
 			}
@@ -317,8 +316,10 @@ int main()
 	int rskfd;
 	int ret;
 	pthread_t tid;
-	struct tcp_frm_para tsfpara;
+	pthread_attr_t thrdattr;
 	struct thread_pack tpack;
+	struct tcp_frm_para tsfpara;
+	struct tcp_tmp_frm tmpara;
 
 	ret = _set_para(&tsfpara);
 	if(ret == -1){
@@ -331,7 +332,12 @@ int main()
 		printf("<Modbus Tcp Slave> god damn wried !!\n");
 		exit(0);
 	}
-
+	
+	tpack.tmpara = &tmpara;
+	tpack.tsfpara = &tsfpara;
+	pthread_mutex_init(&(tpack.mutex), NULL);
+	pthread_attr_init(&thrdattr);
+	
 	do{	
 		rskfd = _sk_accept(skfd);
 		if(rskfd == -1){
@@ -347,8 +353,8 @@ int main()
 			handle_error_en(ret, "pthread_create");
 		}	
 	}while(1);	
-	
 	close(skfd);
+	pthread_mutex_destroy(&(tpack.mutex));
 	return 0;
 }
 
