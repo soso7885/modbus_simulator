@@ -9,6 +9,7 @@
 #include <sys/time.h>
 #include <sys/select.h> 
 #include <arpa/inet.h>
+#include <sched.h>
 #include <pthread.h>
 
 #include "mbus.h" 
@@ -314,7 +315,8 @@ int main()
 	int rskfd;
 	int ret;
 	pthread_t tid;
-//	pthread_attr_t thrdattr;
+	pthread_attr_t attr;
+	struct sched_param param;
 	struct thread_pack tpack;
 	struct tcp_frm_para tsfpara;
 	struct tcp_tmp_frm tmpara;
@@ -334,13 +336,16 @@ int main()
 	tpack.tmpara = &tmpara;
 	tpack.tsfpara = &tsfpara;
 	pthread_mutex_init(&(tpack.mutex), NULL);
-//	pthread_attr_init(&thrdattr);
+	pthread_attr_init(&attr);
+	pthread_attr_setschedpolicy(&attr, SCHED_RR);	// use RR scheduler
+	param.sched_priority = 10;						// set priority 10
+	pthread_attr_setschedparam(&attr, &param);
 	
 	do{	
 		rskfd = _sk_accept(skfd);
 		if(rskfd == -1){
 			printf("<Modbus Tcp Slave> god damn wried !!\n");
-			continue;
+			break;
 		}
 	
 		tpack.rskfd = rskfd;
@@ -353,6 +358,7 @@ int main()
 	}while(1);	
 	close(skfd);
 	pthread_mutex_destroy(&(tpack.mutex));
+	pthread_attr_destroy(&attr);
 	return 0;
 }
 
