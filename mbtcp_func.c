@@ -47,7 +47,7 @@ int tcp_query_parser(struct tcp_frm *rx_buf, struct thread_pack *tpack)
 	if(!(rfc ^ FORCESIGLEREGS)){                // FC = 0x05, get the status to write(on/off)
 		if(!qact || qact == 0xff<<8){
 			pthread_mutex_lock(&(tpack->mutex));	
-			tmpara->act = qact;	//lock !
+			tmpara->act = qact;		//lock !
 			pthread_mutex_unlock(&(tpack->mutex));
 		}else{
 			printf("<Modbus TCP Slave> Query set the status to write fuckin worng(fc = 0x05)\n");
@@ -65,13 +65,13 @@ int tcp_query_parser(struct tcp_frm *rx_buf, struct thread_pack *tpack)
 			return -2;
 		}
 		pthread_mutex_lock(&(tpack->mutex));
-		tmpara->act = qact;	// lock!
+		tmpara->act = qact;			// lock!
 		pthread_mutex_unlock(&(tpack->mutex));
 	}else{
 		if((qstraddr + qact <= rstraddr + rlen) && (qstraddr >= rstraddr)){ // Query addr+shift len must smaller than the contain we set in addr+shift len
 			pthread_mutex_lock(&(tpack->mutex));
-			tmpara->straddr = qstraddr;	// lock!
-			tmpara->len = qact;		// lock!
+			tmpara->straddr = qstraddr;		// lock!
+			tmpara->len = qact;				// lock!
 			pthread_mutex_unlock(&(tpack->mutex));
 		}else{
 			printf("<Modbus TCP Slave> The address have no contain\n");
@@ -195,7 +195,8 @@ int tcp_resp_parser(unsigned char *rx_buf, struct tcp_frm_para *tmfpara, int rle
 		memcpy(&tmp16, rx_buf+10, sizeof(tmp16));
 		ract = ntohs(tmp16);
 		if(qact != ract){
-			printf("<Modbus TCP Master> Action fail (FC:0x06)\n");
+			printf("<Modbus TCP Master> Action fail (FC:0x06) ");
+			printf("Query action : %x | Respond action : %x\n", qact, ract);
 			return -1;
 		}
 		printf("<Modbus TCP Master> addr : %x Action code : %x\n", raddr, ract);
@@ -322,8 +323,8 @@ int tcp_build_resp_set_single(struct tcp_frm *tx_buf, struct thread_pack *tpack,
 	tx_buf->msglen = htons(tpack->tsfpara->msglen);
 	tx_buf->unitID = tpack->tsfpara->unitID;
 	tx_buf->fc = fc;
-//	tx_buf->straddr = htons(tpack->tmpara->straddr);
-//	tx_buf->act = htons(tpack->tmpara->act);
+	tx_buf->straddr = htons(tpack->tsfpara->straddr);
+	tx_buf->act = htons(tpack->tmpara->act);
 	
 	printf("<Modbus TCP Slave> respond %s\n", fc==FORCESIGLEREGS?"Force Single Coli":"Preset Single Register");
 	 

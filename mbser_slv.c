@@ -17,6 +17,7 @@
 int _set_para(struct frm_para *sfpara)
 {
 	int cmd;
+	int tmp;
 	unsigned int straddr;	
 	
 	printf("RTU Modbus Slave mode !\nEnter Slave ID : ");
@@ -55,9 +56,18 @@ int _set_para(struct frm_para *sfpara)
 	printf("Setting contain, Start addr : ");
 	scanf("%d", &straddr);
 	sfpara->straddr = straddr - 1;
-	if(cmd < 5){
-		printf("Setting contain/ Shift len : ");
+	if(cmd == 1 || cmd == 2){
+		printf("Setting address shift length : ");
 		scanf("%d", &sfpara->len);
+	}else if(cmd == 3 || cmd == 4){
+		printf("Setting address shift length ; ");
+		scanf("%d", &tmp);
+		if(tmp > 110 || tmp < 0){
+			printf("Please DO NOT exceed 110 !\n");                                                   
+			printf("Come on, dude. That's just a testing progam ...\n");
+			exit(0);
+		}
+		sfpara->len = (unsigned int)tmp;
 	}
 		
 	return 0;

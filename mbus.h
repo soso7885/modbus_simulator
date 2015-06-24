@@ -44,15 +44,6 @@ static inline int carry(int bdiv, int div)
 
 	return ans;
 }
-
-/* mutithread parameter */
-struct thread_pack {
-	struct tcp_frm_para *tsfpara;
-	struct tcp_tmp_frm *tmpara;
-	int rskfd;
-	pthread_mutex_t mutex;
-};
-	
 /* modbus SERIAL frame */
 struct frm_para {
 	unsigned int slvID;
@@ -61,7 +52,16 @@ struct frm_para {
 	unsigned int straddr;
 	unsigned int act;			// The status to write (in FC 0x05/0x06) 
 };
-	
+
+/* mutithread parameter */
+struct thread_pack {
+	struct tcp_frm_para *tsfpara;
+	struct tcp_tmp_frm *tmpara;
+	int rskfd;
+	pthread_mutex_t mutex;
+};
+
+/* This is for modbus tcp use to set respond straddr & act in temporary */
 struct tcp_tmp_frm {
 	unsigned short straddr;
 	unsigned short act;

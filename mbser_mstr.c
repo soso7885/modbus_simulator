@@ -77,9 +77,8 @@ int _set_para(struct frm_para *mfpara)
 			printf("Please DO NOT exceed 110 ! ");
 			printf("Come on, dude. That's just a testing progam.");
 			exit(0);
-		}else{
-			mfpara->len = (unsigned int)tmp;
 		}
+		mfpara->len = (unsigned int)tmp;
 	}else{
 		printf("Setting contain/shift len : ");
 		scanf("%d", &mfpara->len);

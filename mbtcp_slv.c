@@ -68,9 +68,8 @@ int _set_para(struct tcp_frm_para *tsfpara){
 			printf("Please DO NOT exceed 110 !\n");
 			printf("Come on, dude. That's just a testing progam ...\n");
 			exit(0);
-		}else{
-			tsfpara->len = (unsigned short)tmp;
 		}
+		tsfpara->len = (unsigned short)tmp;
 	}
 	return 0;
 }
@@ -103,7 +102,6 @@ int _choose_resp_frm(unsigned char *tx_buf, struct thread_pack *tpack, int ret, 
 				break;
 			default:
 				printf("<Modbus TCP Slave> unknown function code : %d\n", tpack->tsfpara->fc);
-				sleep(2);
 				return -1;
 			}
 	}else if(ret == -1){
@@ -243,6 +241,7 @@ void *work_thread(void *data)
 	lock = 0;
 	printf("<Modbus Tcp Slave> Create work thread, connect fd = %d | thread ID = %lu\n",
 			 rskfd, pthread_self());
+	pthread_detach(pthread_self());
 
 	do{
 		FD_ZERO(&rfds);
@@ -262,7 +261,7 @@ void *work_thread(void *data)
 		if(FD_ISSET(rskfd, &rfds)){
 			rlen = recv(rskfd, rx_buf, sizeof(rx_buf), 0);
 			if(rlen < 1){
-				printf("<Modbus Tcp Slave> disconnect (rlen = %d)...\n", rlen);
+				printf("<Modbus Tcp Slave> disconnect(rlen = %d) thread ID = %lu\n", rlen, pthread_self());
 				close(rskfd);
 				pthread_exit(NULL);
 			}
@@ -303,20 +302,19 @@ void *work_thread(void *data)
 		}
 
 		lock = 0;
-		sleep(2);
-
+		sleep(1);
 	}while(1);
 
 	pthread_exit(NULL);
 }
-	
+
 int main()
 {
 	int skfd;
 	int rskfd;
 	int ret;
 	pthread_t tid;
-	pthread_attr_t thrdattr;
+//	pthread_attr_t thrdattr;
 	struct thread_pack tpack;
 	struct tcp_frm_para tsfpara;
 	struct tcp_tmp_frm tmpara;
@@ -336,7 +334,7 @@ int main()
 	tpack.tmpara = &tmpara;
 	tpack.tsfpara = &tsfpara;
 	pthread_mutex_init(&(tpack.mutex), NULL);
-	pthread_attr_init(&thrdattr);
+//	pthread_attr_init(&thrdattr);
 	
 	do{	
 		rskfd = _sk_accept(skfd);

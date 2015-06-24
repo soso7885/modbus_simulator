@@ -215,6 +215,7 @@ int main(int argc, char **argv)
 				break;
 			}
 			/* show recv respond *//*
+			int i;
 			printf("<Modbus TCP Master> Recv respond : ");
 			for(i = 0; i < rlen; i++){
 				printf("%x | ", rx_buf[i]);
@@ -233,7 +234,7 @@ int main(int argc, char **argv)
 	 
 			lock = 0;
 		}
-		sleep(2);
+		sleep(1);
 	}while(1);
 	
 	close(skfd);
