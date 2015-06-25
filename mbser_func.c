@@ -20,7 +20,8 @@ int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara)
 	rlen = sfpara->len;
 
 	if(rfc != qfc){
-		printf("<Modbus Serial Slave> Function code improper\n");
+		printf("<Modbus Serial Slave> Function code improper");
+		printf(" Respond fc = %x | Query fc = %x\n", rfc, qfc);
 		return -2;
 	}
 	

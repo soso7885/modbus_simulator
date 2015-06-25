@@ -13,7 +13,7 @@ mbser_slv: ${SRC_SLAVE_SER}
 mbtcp_mstr: $(SRC_MASTER_TCP)
 	gcc -Wall -o $@ ${SRC_MASTER_TCP} ${FLAG}
 mbtcp_slv: ${SRC_SLAVE_TCP}
-	gcc -Wall -o $@ -g ${SRC_SLAVE_TCP} ${FLAG}
+	gcc -Wall -o $@ ${SRC_SLAVE_TCP} ${FLAG}
 clean:
 	rm -f mbser_slv mbser_mstr mbtcp_mstr mbtcp_slv
 	 

@@ -193,7 +193,7 @@ int main(int argc, char **argv)
 		FD_ZERO(&rfds);
 		FD_SET(fd, &wfds);
 		FD_SET(fd, &rfds);		
-		tv.tv_sec = 2;
+		tv.tv_sec = 5;
 		tv.tv_usec = 0;
 
 		retval = select(fd+1, &rfds, &wfds, 0, &tv);
@@ -205,16 +205,16 @@ int main(int argc, char **argv)
 		if(FD_ISSET(fd, &rfds)){
 			rlen = read(fd, rx_buf, RECVLEN);
 			if(rlen != 8){
-				printf("<Modbus Serial Slave> read incomplete !!\n");
+				printf("<Modbus Serial Slave> recv Query length != 8 !!\n");
 				continue;
 			}
-	
 			ret = ser_chk_dest(rx_buf, &sfpara);
 			if(ret == -1){
 				memset(rx_buf, 0, FRMLEN);
 				continue;
 			}
 			lock = 1;
+			
 			/* Show recv query *//*
 			int i;
 			printf("<Modbus Serial Slave> Recv query :");
@@ -242,9 +242,19 @@ int main(int argc, char **argv)
 				printf("<Modbus Serial Slave> write incomplete !!\n");
 				continue;
 			}
+			/* for EKI test */
+			if(sfpara.slvID == 32){
+				sfpara.slvID = 1;
+			}else if(sfpara.slvID == 9){
+				sfpara.slvID = 11;
+			}else{
+				sfpara.slvID++;
+			}
+			printf("Now SlavID = %d\n", sfpara.slvID);
+
 			lock = 0;
 		}	
-		sleep(2);
+		sleep(3);
 	}while(1);
 	
 	if(fd == -1){

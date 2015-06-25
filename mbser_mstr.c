@@ -214,7 +214,6 @@ int main(int argc, char **argv)
 			ret = ioctl(fd, TIOCSERGETLSR, &lsr);
 			if(ret == -1){ // if device not support TIOCSERGETLSR, what should I do?
 				printf("<Modbus Serial Master> TIOCSERGETLSR : %s\n", strerror(errno));
-				sleep(2);
 			}else{
 				while(lsr == 0){
 					ret = ioctl(fd, TIOCSERGETLSR, &lsr);

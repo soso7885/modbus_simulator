@@ -14,7 +14,6 @@
 
 #include "mbus.h" 
 
-#define PORT 		"8000"
 #define BACKLOG		10
 
 int _set_para(struct tcp_frm_para *tsfpara){
@@ -116,7 +115,7 @@ int _choose_resp_frm(unsigned char *tx_buf, struct thread_pack *tpack, int ret, 
 	return txlen;
 }
 
-int _create_sk_svr(void)
+int _create_sk_svr(char *port)
 {
 	int skfd;
 	int ret;
@@ -125,13 +124,15 @@ int _create_sk_svr(void)
 	struct addrinfo *res;	
 	struct addrinfo *p;
 	
+	printf("PORT : %s\n", port);
+
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 	hints.ai_protocol = 0;
 	
-	ret = getaddrinfo(NULL, PORT, &hints, &res);
+	ret = getaddrinfo(NULL, port, &hints, &res);
 	if(ret != 0){
 		printf("<Modbus Tcp Slave> getaddrinfo : %s\n", gai_strerror(ret));
 		exit(0);
@@ -309,17 +310,24 @@ void *work_thread(void *data)
 	pthread_exit(NULL);
 }
 
-int main()
+int main(int argc, char **argv)
 {
 	int skfd;
 	int rskfd;
 	int ret;
+	char *port;
 	pthread_t tid;
 	pthread_attr_t attr;
 	struct sched_param param;
 	struct thread_pack tpack;
 	struct tcp_frm_para tsfpara;
 	struct tcp_tmp_frm tmpara;
+	
+	if(argc < 2){
+		printf("Usage : ./mbtcp_slv <PORT> \n");
+		exit(0);
+	}
+	port = argv[1];
 
 	ret = _set_para(&tsfpara);
 	if(ret == -1){
@@ -327,7 +335,7 @@ int main()
 		exit(0);
 	}
 
-	skfd = _create_sk_svr();
+	skfd = _create_sk_svr(port);
 	if(skfd == -1){
 		printf("<Modbus Tcp Slave> god damn wried !!\n");
 		exit(0);

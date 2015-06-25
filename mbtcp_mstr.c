@@ -11,8 +11,6 @@
 
 #include "mbus.h"
 
-#define PORT "8000"
-
 int _set_para(struct tcp_frm_para *tmfpara)
 {
 	int cmd;
@@ -91,7 +89,7 @@ int _set_para(struct tcp_frm_para *tmfpara)
 	return 0;
 }
 
-int _create_sk_cli(char *addr)
+int _create_sk_cli(char *addr, char *port)
 {
 	int skfd;
 	int ret;
@@ -104,7 +102,7 @@ int _create_sk_cli(char *addr)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = 0;
 
-	ret = getaddrinfo(addr, PORT, &hints, &res);
+	ret = getaddrinfo(addr, port, &hints, &res);
 	if(ret != 0){
 		printf("<Modbus Tcp Master> getaddrinfo : %s\n", gai_strerror(ret));
 		exit(0);
@@ -143,6 +141,7 @@ int main(int argc, char **argv)
 	int wlen;
 	int rlen;
 	int lock;
+	char *port;
 	char *addr;
 	unsigned char rx_buf[FRMLEN];
 	unsigned char tx_buf[FRMLEN];	
@@ -151,13 +150,14 @@ int main(int argc, char **argv)
 	struct timeval tv;
 	struct tcp_frm_para tmfpara;
 	
-	if(argc < 2){
-		printf("Enter fuckin server IP addr !!\n");
+	if(argc < 3){
+		printf("Usage : ./mbtcp_mstr <IP Address> <PORT>\n");
 		exit(0);
 	}	
 	addr = argv[1];
+	port = argv[2];
 	
-	skfd = _create_sk_cli(addr);
+	skfd = _create_sk_cli(addr, port);
 	if(skfd < 0){
 		close(skfd);
 		printf("<Modbus Tcp Master> Fail to connect\n");
@@ -178,7 +178,7 @@ int main(int argc, char **argv)
 		FD_SET(skfd, &rfds);
 		FD_SET(skfd, &wfds);
 		
-		tv.tv_sec = 2;
+		tv.tv_sec = 5;
 		tv.tv_usec = 0;
 		
 		retval = select(skfd + 1, &rfds, &wfds, 0, &tv);
@@ -212,13 +212,13 @@ int main(int argc, char **argv)
 			rlen = recv(skfd, rx_buf, FRMLEN, 0);
 			if(rlen < 1){
 				printf("<Modbus TCP Master> fuckin recv empty !!\n");
-				break;
+				continue;
 			}
 			/* show recv respond *//*
-			int i;
+			int j;
 			printf("<Modbus TCP Master> Recv respond : ");
-			for(i = 0; i < rlen; i++){
-				printf("%x | ", rx_buf[i]);
+			for(j = 0; j < rlen; j++){
+				printf("%x | ", rx_buf[j]);
 			}
 			printf("## rlen = %d ##\n", rlen);
 			*//* show end */
@@ -229,12 +229,21 @@ int main(int argc, char **argv)
 			}
 			ret = tcp_resp_parser(rx_buf, &tmfpara, rlen);
 			if(ret == -1){
-				continue;
+//				continue;
 			}
-	 
+	 		/* for EKI test */
+			if(tmfpara.unitID == 32){
+				tmfpara.unitID = 1;
+			}else if(tmfpara.unitID == 9){
+				tmfpara.unitID = 11;
+			}else{
+				tmfpara.unitID++;
+			}
+			printf("Now slvID = %d\n", tmfpara.unitID);
+
 			lock = 0;
 		}
-		sleep(1);
+		sleep(3);
 	}while(1);
 	
 	close(skfd);
