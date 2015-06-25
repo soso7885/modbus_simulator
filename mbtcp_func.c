@@ -181,9 +181,9 @@ int tcp_resp_parser(unsigned char *rx_buf, struct tcp_frm_para *tmfpara, int rle
 		raddr = ntohs(tmp16);
 		ract = *(rx_buf+10);
 		if(ract == 255){
-			printf("<Modbus TCP Master> addr : %x The status to wirte on (FC:0x04)\n", raddr);
+			printf("<Modbus TCP Master> addr : %x The status to wirte on (FC:0x05)\n", raddr);
 		}else if(!ract){
-			printf("<Modbus TCP Master> addr : %x The status to wirte off (FC:0x04)\n", raddr);
+			printf("<Modbus TCP Master> addr : %x The status to wirte off (FC:0x05)\n", raddr);
 		}else{
 			printf("<Modbus TCP Master> Unknown status (FC:0x04)\n");
 			return -1;

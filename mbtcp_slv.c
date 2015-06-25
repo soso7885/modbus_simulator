@@ -106,10 +106,13 @@ int _choose_resp_frm(unsigned char *tx_buf, struct thread_pack *tpack, int ret, 
 			}
 	}else if(ret == -1){
 		txlen = tcp_build_resp_excp((struct tcp_frm_excp *)tx_buf, tsfpara, EXCPILLGFUNC);
+		print_data(tx_buf, txlen, SENDEXCP);	
 	}else if(ret == -2){
 		txlen = tcp_build_resp_excp((struct tcp_frm_excp *)tx_buf, tsfpara, EXCPILLGDATAADDR);
+		print_data(tx_buf, txlen, SENDEXCP);
 	}else if(ret == -3){
 		txlen = tcp_build_resp_excp((struct tcp_frm_excp *)tx_buf, tsfpara, EXCPILLGDATAVAL);
+		print_data(tx_buf, txlen, SENDEXCP);
 	}
 
 	return txlen;
@@ -220,7 +223,6 @@ int _sk_accept(int skfd)
 
 void *work_thread(void *data)
 {
-	int i;
 	int wlen;
 	int txlen;
 	int rlen;
@@ -272,13 +274,10 @@ void *work_thread(void *data)
 			if(ret == -1){
 				memset(rx_buf, 0, FRMLEN);
 				continue;
-			}   
-			printf("<Modbus TCP Slave> Recv : ");
-			for(i = 0; i < rlen; i++){
-				printf("%x | ", rx_buf[i]);
 			}
-			printf(" ## rlen = %d ##\n", rlen );
-			
+
+//			print_data(rx_buf, rlen, RECVQRY);
+		
 			ret = tcp_query_parser((struct tcp_frm *)rx_buf, tpack);
 			lock = 1;
 		}
@@ -288,13 +287,9 @@ void *work_thread(void *data)
 			if(txlen == -1){
 				break;
 			}
-			/* show send respond *//*
-			printf("send resp :");
-			for(i = 0; i < txlen; i++){
-				printf(" %x |", tx_buf[i]);
-			}
-			printf(" ## txlen = %d ##\n", txlen);
-			*//* show end */
+	
+//			print_data(tx_buf, txlen, SENDRESP);
+
 			wlen = send(rskfd, tx_buf, txlen, 0);
 			if(wlen != txlen){
 				printf("<Modbus TCP Slave> send respond incomplete !!\n");

@@ -189,14 +189,9 @@ int main(int argc, char **argv)
 	
 		if(FD_ISSET(skfd, &wfds) && !lock){		
 			tcp_build_query((struct tcp_frm *)tx_buf, &tmfpara);
-            /* show send query *//* 
-			int i;
-            printf("<Modbus TCP Master> send query : ");
-            for(i = 0; i < TCPSENDQUERYLEN; i++ ){
-                printf("%x | ", tx_buf[i]);
-            }
-            printf("## len = %d ##\n", TCPSENDQUERYLEN);
-            *//* show end */
+            if(tmfpara.unitID == 10 || tmfpara.unitID == 9 || tmfpara.unitID == 11){
+				print_data(tx_buf, TCPSENDQUERYLEN, SENDQRY);
+			}
 			wlen = send(skfd, &tx_buf, TCPSENDQUERYLEN, MSG_NOSIGNAL);
 			if(wlen != TCPSENDQUERYLEN){
 				printf("<Modbus TCP Master> send incomplete !!\n");
@@ -214,14 +209,7 @@ int main(int argc, char **argv)
 				printf("<Modbus TCP Master> fuckin recv empty !!\n");
 				continue;
 			}
-			/* show recv respond *//*
-			int j;
-			printf("<Modbus TCP Master> Recv respond : ");
-			for(j = 0; j < rlen; j++){
-				printf("%x | ", rx_buf[j]);
-			}
-			printf("## rlen = %d ##\n", rlen);
-			*//* show end */
+
 			ret = tcp_chk_pack_dest((struct tcp_frm *)rx_buf, &tmfpara); 
 			if(ret == -1){
 				memset(rx_buf, 0, FRMLEN);
@@ -229,21 +217,23 @@ int main(int argc, char **argv)
 			}
 			ret = tcp_resp_parser(rx_buf, &tmfpara, rlen);
 			if(ret == -1){
+				print_data(rx_buf, TCPRESPEXCPFRMLEN, RECVEXCP);
 //				continue;
 			}
-	 		/* for EKI test */
+
+//			print_data(rx_buf, rlen, RECVRESP);
+
+	 		/* Polling slvID test */
 			if(tmfpara.unitID == 32){
 				tmfpara.unitID = 1;
-			}else if(tmfpara.unitID == 9){
-				tmfpara.unitID = 11;
 			}else{
 				tmfpara.unitID++;
 			}
 			printf("Now slvID = %d\n", tmfpara.unitID);
-
+			/* test end */
 			lock = 0;
 		}
-		sleep(3);
+		sleep(1);
 	}while(1);
 	
 	close(skfd);

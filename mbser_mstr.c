@@ -117,8 +117,7 @@ int _set_termois(int fd, struct termios2 *newtio)
 }
 
 int main(int argc, char **argv)
-{
-	int i;
+{	
 	int fd;
 	int retval;
 	int ret;
@@ -161,12 +160,8 @@ int main(int argc, char **argv)
 	} 
 
 	txlen = ser_build_query(tx_buf, &mfpara);	// pack Query
-	/* Show send query */
-	for(i = 0; i < txlen; i++){
-		printf(" %x |", tx_buf[i]);
-	}
-	printf(" ## txlen = %d ##\n", txlen);
-	/* Show end */
+	print_data(tx_buf, txlen, SENDQRY);
+
 	do{
 		FD_ZERO(&wfds);
 		FD_ZERO(&rfds);
@@ -190,13 +185,7 @@ int main(int argc, char **argv)
 			}	
 */
 			rlen = read(fd, rx_buf, FRMLEN);
-			/* Show recv resp *//*
-			printf("<Master mode> Recv respond :");
-			for(i = 0; i < rlen; i++){
-				printf(" %x |", rx_buf[i]);
-			}
-			printf(" rlen = %d\n", rlen);
-			*//* Show end */
+			
 			ret = ser_chk_dest(rx_buf, &mfpara);
 			if(ret == -1){
 				memset(rx_buf, 0, FRMLEN);
@@ -205,8 +194,10 @@ int main(int argc, char **argv)
 			wlen = 0;
 			ret = ser_resp_parser(rx_buf, &mfpara, rlen);
 			if(ret == -1){
-				continue;
+				print_data(rx_buf, rlen, RECVEXCP);
+//				continue;
 			}
+			print_data(rx_buf, rlen, RECVRESP);
 		}
 		/* Send Query */
 		if(FD_ISSET(fd, &wfds)){

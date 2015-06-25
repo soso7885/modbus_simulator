@@ -106,10 +106,13 @@ int _choose_resp_frm(unsigned char *tx_buf, struct frm_para *sfpara, int ret, in
 		return -1;
 	}else if(ret == -2){
 		txlen = ser_build_resp_excp(tx_buf, sfpara, EXCPILLGFUNC);
+		print_data(tx_buf, txlen, SENDEXCP);
 	}else if(ret == -3){
 		txlen = ser_build_resp_excp(tx_buf, sfpara, EXCPILLGDATAVAL);
+		print_data(tx_buf, txlen, SENDEXCP); 
 	}else if(ret == -4){
 		txlen = ser_build_resp_excp(tx_buf, sfpara, EXCPILLGDATAADDR);
+		print_data(tx_buf, txlen, SENDEXCP); 
 	}
 
 	return txlen;
@@ -214,22 +217,16 @@ int main(int argc, char **argv)
 				continue;
 			}
 			lock = 1;
-			
-			/* Show recv query *//*
-			int i;
-			printf("<Modbus Serial Slave> Recv query :");
-			for(i = 0; i < RECVLEN; i++){
-				printf(" %x |", rx_buf[i]);
-			}
-			printf("## rlen = %d ##\n", rlen);
-			*//* show end */
+			if(sfpara.slvID >= 9  && sfpara.slvID <= 11){
+				print_data(rx_buf, RECVLEN, RECVQRY);
+			}		
 			ret = ser_query_parser(rx_buf, &sfpara);
 		}
 		/* Send Respond */
 		if(FD_ISSET(fd, &wfds)){
 			if(!lock){
 				printf("<Modbus Serial Slave> wating for query ...\n");
-				sleep(3);
+				sleep(1);
 				continue;
 			}
 			txlen = _choose_resp_frm(tx_buf, &sfpara, ret, &lock);
@@ -237,24 +234,22 @@ int main(int argc, char **argv)
 				continue;
 			}
 			wlen = write(fd, tx_buf, txlen);
-			printf("<Modbus Serial Slave> respond, wlen = %d\n", wlen);	
 			if(wlen != txlen){
 				printf("<Modbus Serial Slave> write incomplete !!\n");
-				continue;
+//				continue;
 			}
-			/* for EKI test */
+//			print_data(tx_buf, wlen, SENDRESP);
+			/* polling slvID test */
 			if(sfpara.slvID == 32){
 				sfpara.slvID = 1;
-			}else if(sfpara.slvID == 9){
-				sfpara.slvID = 11;
 			}else{
 				sfpara.slvID++;
 			}
 			printf("Now SlavID = %d\n", sfpara.slvID);
-
+			/* test end */
 			lock = 0;
 		}	
-		sleep(3);
+		sleep(1);
 	}while(1);
 	
 	if(fd == -1){

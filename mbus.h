@@ -27,10 +27,16 @@
 #define FORCESIGLEREGS_EXCP		133
 #define PRESETEXCPSTATUS_EXCP	134
 
+#define RECVRESP	1
+#define RECVQRY		2
+#define RECVEXCP	3
+#define SENDRESP	4
+#define SENDQRY		5
+#define SENDEXCP	6
+
 #define FRMLEN 260  /* | 1byte | 1byte | 0~255byte | 2byte | */
 #define handle_error_en(en, msg) \
 				do { errno = en; perror(msg); exit(EXIT_FAILURE); } while (0)
-
 static inline int carry(int bdiv, int div)
 {
 	int tmp;
@@ -44,6 +50,42 @@ static inline int carry(int bdiv, int div)
 
 	return ans;
 }
+
+static inline int print_data(unsigned char *buf, int len, int status)
+{
+	int i;
+	
+	switch(status){
+		case RECVRESP:
+			printf("Recv Respond :");
+			break;
+		case RECVQRY:
+			printf("Recv Query :");
+			break;
+		case RECVEXCP:
+			printf("Recv Excption :");
+			break;
+		case SENDRESP:
+			printf("Send Respond :");
+			break;
+		case SENDQRY:
+			printf("Send Query :");
+			break;
+		case SENDEXCP:
+			printf("Send Excption :");
+			break;
+		default:
+			printf("Show data error type !\n");
+			return -1;
+	}
+	for(i = 0; i < len; i++){
+		printf(" %x |", buf[i]);
+	}
+	printf("## len = %d ##\n", len);
+	
+	return 0;
+}
+
 /* modbus SERIAL frame */
 struct frm_para {
 	unsigned int slvID;
