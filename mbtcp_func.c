@@ -264,7 +264,7 @@ int tcp_build_resp_read_status(struct tcp_frm_rsp *tx_buf, struct thread_pack *t
 	len = tpack->tmpara->len;
 	byte = carry((int)len, 8);
 	txlen = byte + 9;
-	msglen = byte + 2;	
+	msglen = byte + 3;	
 	tpack->tsfpara->msglen = msglen;
 	tx_buf->transID = htons(tpack->tsfpara->transID);
 	tx_buf->potoID = htons(tpack->tsfpara->potoID);
@@ -292,7 +292,7 @@ int tcp_build_resp_read_regs(struct tcp_frm_rsp *tx_buf, struct thread_pack *tpa
 	num_regs = tpack->tmpara->len;
 	byte = num_regs * 2;
 	txlen = byte + 9;
-	msglen = byte + 2;  
+	msglen = byte + 3;  
 	tpack->tsfpara->msglen = msglen;
 
 	tx_buf->transID = htons(tpack->tsfpara->transID);
