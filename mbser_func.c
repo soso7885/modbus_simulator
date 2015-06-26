@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <arpa/inet.h>
 
 #include "mbus.h"
 
@@ -263,7 +265,6 @@ int ser_build_resp_read_status(unsigned char *tx_buf, struct frm_para *sfpara, u
 {
 	int i;
 	int byte;
-	int res;
 	int src_len;
 	unsigned int slvID;
 	unsigned int len;	
@@ -271,11 +272,7 @@ int ser_build_resp_read_status(unsigned char *tx_buf, struct frm_para *sfpara, u
 	
 	slvID = sfpara->slvID;
 	len = sfpara->len; 
-	res = len % 8;
-	byte = len / 8;	
-	if(res > 0){
-		byte += 1;
-	}
+	byte = carry(len, 8);
 	src_len = byte + 3;
 
 	src[0] = slvID;	

@@ -12,8 +12,6 @@
 
 #include "mbus.h"
 
-#define RECVLEN 8
-
 int _set_para(struct frm_para *sfpara)
 {
 	int cmd;
@@ -60,7 +58,7 @@ int _set_para(struct frm_para *sfpara)
 		printf("Setting address shift length : ");
 		scanf("%d", &sfpara->len);
 	}else if(cmd == 3 || cmd == 4){
-		printf("Setting address shift length ; ");
+		printf("Setting address shift length : ");
 		scanf("%d", &tmp);
 		if(tmp > 110 || tmp < 0){
 			printf("Please DO NOT exceed 110 !\n");                                                   
@@ -206,9 +204,10 @@ int main(int argc, char **argv)
 		}
 		/* Recv Query */
 		if(FD_ISSET(fd, &rfds)){
-			rlen = read(fd, rx_buf, RECVLEN);
-			if(rlen != 8){
-				printf("<Modbus Serial Slave> recv Query length != 8 !!\n");
+			rlen = read(fd, rx_buf, SERRECVQRYLEN);
+			if(rlen != SERRECVQRYLEN){
+				printf("<Modbus Serial Slave> recv Query length != 8 (rlen = %d)!!\n", rlen);
+				print_data(rx_buf, rlen, RECVQRY);
 				continue;
 			}
 			ret = ser_chk_dest(rx_buf, &sfpara);
@@ -218,7 +217,7 @@ int main(int argc, char **argv)
 			}
 			lock = 1;
 			if(sfpara.slvID >= 9  && sfpara.slvID <= 11){
-				print_data(rx_buf, RECVLEN, RECVQRY);
+				print_data(rx_buf, SERRECVQRYLEN, RECVQRY);
 			}		
 			ret = ser_query_parser(rx_buf, &sfpara);
 		}
@@ -233,23 +232,16 @@ int main(int argc, char **argv)
 			if(txlen == -1){
 				continue;
 			}
-			wlen = write(fd, tx_buf, txlen);
+			wlen = write(fd, tx_buf, txlen);			
 			if(wlen != txlen){
 				printf("<Modbus Serial Slave> write incomplete !!\n");
 //				continue;
 			}
-//			print_data(tx_buf, wlen, SENDRESP);
-			/* polling slvID test */
-			if(sfpara.slvID == 32){
-				sfpara.slvID = 1;
-			}else{
-				sfpara.slvID++;
-			}
-			printf("Now SlavID = %d\n", sfpara.slvID);
-			/* test end */
+			print_data(tx_buf, wlen, SENDRESP);
+
 			lock = 0;
 		}	
-		sleep(1);
+		sleep(3);
 	}while(1);
 	
 	if(fd == -1){

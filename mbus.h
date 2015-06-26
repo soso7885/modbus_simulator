@@ -1,12 +1,15 @@
 #ifndef MBUS_H
 #define MBUS_H
 
+#define INITTCPTRANSID			1<<8
+
 #define TCPMBUSPROTOCOL			0
 #define TCPQUERYMSGLEN			6
 #define TCPRESPSETSIGNALLEN		6
 #define TCPRESPEXCPFRMLEN		9
 #define TCPRESPEXCPMSGLEN		3
 #define TCPSENDQUERYLEN			12
+#define SERRECVQRYLEN 				8
 
 #define READCOILSTATUS 			0x01
 #define READINPUTSTATUS 		0x02
@@ -35,8 +38,13 @@
 #define SENDEXCP	6
 
 #define FRMLEN 260  /* | 1byte | 1byte | 0~255byte | 2byte | */
+
 #define handle_error_en(en, msg) \
 				do { errno = en; perror(msg); exit(EXIT_FAILURE); } while (0)
+
+#define polling_slvID(slvID) \
+				do { ((slvID) == 32) ? (slvID)=1:(slvID)++; } while(0)
+
 static inline int carry(int bdiv, int div)
 {
 	int tmp;

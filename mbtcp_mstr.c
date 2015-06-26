@@ -17,12 +17,13 @@ int _set_para(struct tcp_frm_para *tmfpara)
 	int tmp;
 	unsigned short straddr;
 
-	printf("Modbus TCP Master mode !\nEnter Transaction ID : ");
-	scanf("%hu", &tmfpara->transID);
+	printf("Modbus TCP Master mode !\n");
+	tmfpara->transID = INITTCPTRANSID;
 	tmfpara->potoID = (unsigned char)TCPMBUSPROTOCOL;
 	tmfpara->msglen = (unsigned char)TCPQUERYMSGLEN;
 	printf("Enter Unit ID : ");
-	scanf("%hhu", &tmfpara->unitID);
+	scanf("%d", &tmp);
+	memcpy(&tmfpara->unitID, &tmp, sizeof(tmfpara->unitID));	
 	printf("Enter Function code : ");
 	scanf("%d", &cmd);
 	switch(cmd){
@@ -187,19 +188,20 @@ int main(int argc, char **argv)
 			continue;
 		}
 	
-		if(FD_ISSET(skfd, &wfds) && !lock){		
+		if(FD_ISSET(skfd, &wfds) && !lock){	
 			tcp_build_query((struct tcp_frm *)tx_buf, &tmfpara);
             if(tmfpara.unitID == 10 || tmfpara.unitID == 9 || tmfpara.unitID == 11){
 				print_data(tx_buf, TCPSENDQUERYLEN, SENDQRY);
 			}
 			wlen = send(skfd, &tx_buf, TCPSENDQUERYLEN, MSG_NOSIGNAL);
+			printf("### num1 : %x\n", tx_buf[0]);
 			if(wlen != TCPSENDQUERYLEN){
 				printf("<Modbus TCP Master> send incomplete !!\n");
 				break;
 			}
 			printf("<Modbus TCP Master> send query len = %d\n", wlen);
 
-			tmfpara.transID += 1<<2;
+			tmfpara.transID += INITTCPTRANSID; 
 			lock = 1;
 		}
 
@@ -223,17 +225,11 @@ int main(int argc, char **argv)
 
 //			print_data(rx_buf, rlen, RECVRESP);
 
-	 		/* Polling slvID test */
-			if(tmfpara.unitID == 32){
-				tmfpara.unitID = 1;
-			}else{
-				tmfpara.unitID++;
-			}
-			printf("Now slvID = %d\n", tmfpara.unitID);
-			/* test end */
+//			polling_slvID(tmfpara.unitID);
+	 	
 			lock = 0;
 		}
-		sleep(1);
+		sleep(3);
 	}while(1);
 	
 	close(skfd);
