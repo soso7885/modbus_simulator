@@ -194,12 +194,12 @@ int main(int argc, char **argv)
 				print_data(tx_buf, TCPSENDQUERYLEN, SENDQRY);
 			}
 			wlen = send(skfd, &tx_buf, TCPSENDQUERYLEN, MSG_NOSIGNAL);
-			printf("### num1 : %x\n", tx_buf[0]);
 			if(wlen != TCPSENDQUERYLEN){
 				printf("<Modbus TCP Master> send incomplete !!\n");
+				print_data(tx_buf, wlen, SENDINCOMPLT);
 				break;
 			}
-			printf("<Modbus TCP Master> send query len = %d\n", wlen);
+//			print_data(tx_buf, wlen, SENDQRY);	
 
 			tmfpara.transID += INITTCPTRANSID; 
 			lock = 1;
@@ -220,9 +220,9 @@ int main(int argc, char **argv)
 			ret = tcp_resp_parser(rx_buf, &tmfpara, rlen);
 			if(ret == -1){
 				print_data(rx_buf, TCPRESPEXCPFRMLEN, RECVEXCP);
-//				continue;
+				lock = 0;
+				continue;
 			}
-
 //			print_data(rx_buf, rlen, RECVRESP);
 
 //			polling_slvID(tmfpara.unitID);

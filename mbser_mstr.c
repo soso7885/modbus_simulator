@@ -184,8 +184,7 @@ int main(int argc, char **argv)
 				continue;
 			}	
 */
-			rlen = read(fd, rx_buf, FRMLEN);
-			
+			rlen = read(fd, rx_buf, FRMLEN);			
 			ret = ser_chk_dest(rx_buf, &mfpara);
 			if(ret == -1){
 				memset(rx_buf, 0, FRMLEN);
@@ -195,9 +194,9 @@ int main(int argc, char **argv)
 			ret = ser_resp_parser(rx_buf, &mfpara, rlen);
 			if(ret == -1){
 				print_data(rx_buf, rlen, RECVEXCP);
-//				continue;
+				continue;
 			}
-			print_data(rx_buf, rlen, RECVRESP);
+//			print_data(rx_buf, rlen, RECVRESP);
 		}
 		/* Send Query */
 		if(FD_ISSET(fd, &wfds)){
@@ -210,8 +209,9 @@ int main(int argc, char **argv)
 					ret = ioctl(fd, TIOCSERGETLSR, &lsr);
 				}
 			}
-			if(txlen != wlen){
+			if(wlen != txlen){
 				printf("<Modbus Serial Master> write query incomplete !!\n");
+				print_data(tx_buf, wlen, SENDINCOMPLT);
 				continue;
 			}
 		}

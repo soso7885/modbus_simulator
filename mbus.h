@@ -9,7 +9,7 @@
 #define TCPRESPEXCPFRMLEN		9
 #define TCPRESPEXCPMSGLEN		3
 #define TCPSENDQUERYLEN			12
-#define SERRECVQRYLEN 				8
+#define SERRECVQRYLEN 			8
 
 #define READCOILSTATUS 			0x01
 #define READINPUTSTATUS 		0x02
@@ -30,12 +30,14 @@
 #define FORCESIGLEREGS_EXCP		133
 #define PRESETEXCPSTATUS_EXCP	134
 
-#define RECVRESP	1
-#define RECVQRY		2
-#define RECVEXCP	3
-#define SENDRESP	4
-#define SENDQRY		5
-#define SENDEXCP	6
+#define RECVRESP		1
+#define RECVQRY			2
+#define RECVEXCP		3
+#define RECVINCOMPLT	4
+#define SENDRESP		5
+#define SENDQRY			6
+#define SENDEXCP		7
+#define SENDINCOMPLT	8
 
 #define FRMLEN 260  /* | 1byte | 1byte | 0~255byte | 2byte | */
 
@@ -73,6 +75,9 @@ static inline int print_data(unsigned char *buf, int len, int status)
 		case RECVEXCP:
 			printf("Recv Excption :");
 			break;
+		case RECVINCOMPLT:
+			printf("Recv Incomplete :");
+			break;
 		case SENDRESP:
 			printf("Send Respond :");
 			break;
@@ -81,6 +86,9 @@ static inline int print_data(unsigned char *buf, int len, int status)
 			break;
 		case SENDEXCP:
 			printf("Send Excption :");
+			break;
+		case SENDINCOMPLT:
+			printf("Send Incomplete :");
 			break;
 		default:
 			printf("Show data error type !\n");

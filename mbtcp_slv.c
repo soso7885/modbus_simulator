@@ -269,7 +269,13 @@ void *work_thread(void *data)
 				close(rskfd);
 				pthread_exit(NULL);
 			}
-
+/*
+			if(rlen != TCPSENDQUERYLEN){
+				printf("<Modbus Tcp Slave> Recv Incomplete !\n");
+				print_data(rx_buf, rlen, RECVINCOMPLT);
+				break;
+			}
+*/
 			ret = tcp_chk_pack_dest((struct tcp_frm *)rx_buf, tsfpara);
 			if(ret == -1){
 				memset(rx_buf, 0, FRMLEN);
@@ -287,15 +293,13 @@ void *work_thread(void *data)
 			if(txlen == -1){
 				break;
 			}
-	
-//			print_data(tx_buf, txlen, SENDRESP);
-
 			wlen = send(rskfd, tx_buf, txlen, 0);
 			if(wlen != txlen){
 				printf("<Modbus TCP Slave> send respond incomplete !!\n");
+				print_data(tx_buf, wlen, SENDINCOMPLT);
 				break;
 			}
-			printf("txlen = %d\n", wlen);
+//			print_data(tx_buf, txlen, SENDRESP);
 		}
 
 		lock = 0;

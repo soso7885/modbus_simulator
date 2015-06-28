@@ -207,7 +207,7 @@ int main(int argc, char **argv)
 			rlen = read(fd, rx_buf, SERRECVQRYLEN);
 			if(rlen != SERRECVQRYLEN){
 				printf("<Modbus Serial Slave> recv Query length != 8 (rlen = %d)!!\n", rlen);
-				print_data(rx_buf, rlen, RECVQRY);
+				print_data(rx_buf, rlen, RECVINCOMPLT);
 				continue;
 			}
 			ret = ser_chk_dest(rx_buf, &sfpara);
@@ -216,9 +216,7 @@ int main(int argc, char **argv)
 				continue;
 			}
 			lock = 1;
-			if(sfpara.slvID >= 9  && sfpara.slvID <= 11){
-				print_data(rx_buf, SERRECVQRYLEN, RECVQRY);
-			}		
+//			print_data(tx_buf, rlen, RECVQRY);
 			ret = ser_query_parser(rx_buf, &sfpara);
 		}
 		/* Send Respond */
@@ -235,9 +233,10 @@ int main(int argc, char **argv)
 			wlen = write(fd, tx_buf, txlen);			
 			if(wlen != txlen){
 				printf("<Modbus Serial Slave> write incomplete !!\n");
-//				continue;
+				print_data(tx_buf, wlen, SENDINCOMPLT);
+				break;
 			}
-			print_data(tx_buf, wlen, SENDRESP);
+//			print_data(tx_buf, wlen, SENDRESP);
 
 			lock = 0;
 		}	
