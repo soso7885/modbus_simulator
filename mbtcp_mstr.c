@@ -190,10 +190,7 @@ int main(int argc, char **argv)
 	
 		if(FD_ISSET(skfd, &wfds) && !lock){	
 			tcp_build_query((struct tcp_frm *)tx_buf, &tmfpara);
-            if(tmfpara.unitID == 10 || tmfpara.unitID == 9 || tmfpara.unitID == 11){
-				print_data(tx_buf, TCPSENDQUERYLEN, SENDQRY);
-			}
-			wlen = send(skfd, &tx_buf, TCPSENDQUERYLEN, MSG_NOSIGNAL);
+            wlen = send(skfd, &tx_buf, TCPSENDQUERYLEN, MSG_NOSIGNAL);
 			if(wlen != TCPSENDQUERYLEN){
 				printf("<Modbus TCP Master> send incomplete !!\n");
 				print_data(tx_buf, wlen, SENDINCOMPLT);
