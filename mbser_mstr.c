@@ -203,7 +203,7 @@ int main(int argc, char **argv)
 			wlen = write(fd, tx_buf, txlen);
 			ret = ioctl(fd, TIOCSERGETLSR, &lsr);
 			if(ret == -1){ // if device not support TIOCSERGETLSR, what should I do?
-				printf("<Modbus Serial Master> TIOCSERGETLSR : %s\n", strerror(errno));
+//				printf("<Modbus Serial Master> TIOCSERGETLSR : %s\n", strerror(errno));	
 			}else{
 				while(lsr == 0){
 					ret = ioctl(fd, TIOCSERGETLSR, &lsr);

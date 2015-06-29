@@ -223,7 +223,7 @@ int main(int argc, char **argv)
 		if(FD_ISSET(fd, &wfds)){
 			if(!lock){
 				printf("<Modbus Serial Slave> wating for query ...\n");
-				sleep(1);
+				sleep(2);
 				continue;
 			}
 			txlen = _choose_resp_frm(tx_buf, &sfpara, ret, &lock);
@@ -240,7 +240,7 @@ int main(int argc, char **argv)
 
 			lock = 0;
 		}	
-		sleep(3);
+		sleep(1);
 	}while(1);
 	
 	if(fd == -1){
