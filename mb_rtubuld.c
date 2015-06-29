@@ -65,7 +65,6 @@ void build_rtu_frm(unsigned char *dst_buf, unsigned char *src_buf, unsigned char
 	unsigned short crc_tmp;
 
 	crc_tmp = crc_checksum(src_buf, lenth);
-//	printf("CRC in Hexadecimal = %x\n", crc_tmp);
 	*(src_buf + lenth) = crc_tmp >> 8 ;
 	*(src_buf + lenth + 1) = crc_tmp & 0xff;
 	lenth += 2;
