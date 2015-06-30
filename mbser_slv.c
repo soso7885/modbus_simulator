@@ -239,7 +239,7 @@ int main(int argc, char **argv)
 				print_data(tx_buf, wlen, SENDINCOMPLT);
 				break;
 			}
-			print_data(tx_buf, wlen, SENDRESP);
+//			print_data(tx_buf, wlen, SENDRESP);
 //			polling_slvID(sfpara.slvID);
 			lock = 0;
 		}	

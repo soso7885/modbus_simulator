@@ -97,7 +97,7 @@ int _set_termois(int fd, struct termios2 *newtio)
 	}
 	printf("<Modbus Serial Master> BEFORE setting : ospeed %d ispeed %d ret = %d\n", newtio->c_ospeed, newtio->c_ispeed, ret);
 	/* set termios setting */
-	newtio->c_iflag &= ~(ISTRIP|IUCLC|IGNCR|ICRNL|INLCR|ICANON|IXON|PARMRK);
+	newtio->c_iflag &= ~(ISTRIP|IUCLC|IGNCR|ICRNL|INLCR|ICANON|IXON|IXOFF|PARMRK);
 	newtio->c_iflag |= (IGNBRK|IGNPAR);
 	newtio->c_lflag &= ~(ECHO|ICANON|ISIG);
 	newtio->c_cflag &= ~CBAUD;

@@ -199,7 +199,7 @@ int main(int argc, char **argv)
 				break;
 			}
 //			print_data(tx_buf, wlen, SENDQRY);	
-			tmfpara.transID += INITTCPTRANSID; 
+			tmfpara.transID++; 
 			lock = 1;
 		}
 
