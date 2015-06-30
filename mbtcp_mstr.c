@@ -222,11 +222,11 @@ int main(int argc, char **argv)
 			}
 //			print_data(rx_buf, rlen, RECVRESP);
 
-//			polling_slvID(tmfpara.unitID);
+			polling_slvID(tmfpara.unitID);
 	 	
 			lock = 0;
 		}
-		sleep(3);
+		sleep(1);
 	}while(1);
 	
 	close(skfd);

@@ -12,8 +12,6 @@
 
 #include "mbus.h"
 
-#define RECVLEN 8
-
 int _set_para(struct frm_para *mfpara)
 {
 	int cmd;
@@ -71,7 +69,7 @@ int _set_para(struct frm_para *mfpara)
 		printf("Setting register action : ");
 		scanf("%d", &mfpara->act);
 	}else if(cmd == 3 || cmd == 4){
-		printf("Setting shift len");
+		printf("Setting shift len : ");
 		scanf("%d", &tmp);
 		if(tmp > 110 || tmp < 0){
 			printf("Please DO NOT exceed 110 ! ");
@@ -146,7 +144,6 @@ int main(int argc, char **argv)
 		printf("<Modbus Serial Master> Set parameters fail\n");
 		exit(0);
 	}	
-	/* open com port */
 	fd = open(path, O_RDWR);
 	if(fd == -1){
 		printf("<Modbus Serial Master> open : %s\n", strerror(errno));
@@ -159,8 +156,9 @@ int main(int argc, char **argv)
 		return -1;
 	} 
 
-	txlen = ser_build_query(tx_buf, &mfpara);	// pack Query
+	txlen = ser_build_query(tx_buf, &mfpara);	
 	print_data(tx_buf, txlen, SENDQRY);
+	wlen = 0;
 
 	do{
 		FD_ZERO(&wfds);
@@ -178,12 +176,6 @@ int main(int argc, char **argv)
 		}
 
 		if(FD_ISSET(fd, &rfds) && lsr && wlen != 0){
-/*			if(!lsr){
-				printf("<Modbus Serial Master> Waiting for respond...\n");
-				sleep(3);
-				continue;
-			}	
-*/
 			rlen = read(fd, rx_buf, FRMLEN);			
 			ret = ser_chk_dest(rx_buf, &mfpara);
 			if(ret == -1){
@@ -199,11 +191,12 @@ int main(int argc, char **argv)
 //			print_data(rx_buf, rlen, RECVRESP);
 		}
 		/* Send Query */
-		if(FD_ISSET(fd, &wfds)){
+		if(FD_ISSET(fd, &wfds) && !wlen){
 			wlen = write(fd, tx_buf, txlen);
 			ret = ioctl(fd, TIOCSERGETLSR, &lsr);
 			if(ret == -1){ // if device not support TIOCSERGETLSR, what should I do?
 //				printf("<Modbus Serial Master> TIOCSERGETLSR : %s\n", strerror(errno));	
+				lsr = 1;
 			}else{
 				while(lsr == 0){
 					ret = ioctl(fd, TIOCSERGETLSR, &lsr);
@@ -215,6 +208,7 @@ int main(int argc, char **argv)
 				continue;
 			}
 		}
+		sleep(1);
 	}while(1);
 	
 	if(fd == -1){

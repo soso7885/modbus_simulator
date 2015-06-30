@@ -188,7 +188,7 @@ int ser_build_query(unsigned char *tx_buf, struct frm_para *mfpara)
 	
 	slvID = mfpara->slvID;
 	straddr = mfpara->straddr;
-	act = mfpara->act;
+	act = mfpara->len;
 	fc = mfpara->fc;
 
 	src[0] = slvID;
