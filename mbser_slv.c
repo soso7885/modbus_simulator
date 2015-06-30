@@ -120,19 +120,25 @@ int _set_termois(int fd, struct termios2 *newtio)
 {
 	int ret;
 
-	/* get termios setting */
 	ret = ioctl(fd, TCGETS2, newtio);
 	if(ret < 0){
 		printf("<Modbus Serial Slave> ioctl : %s\n", strerror(errno));
 		return -1;
 	}
 	printf("<Modbus Serial Slave> BEFORE setting : ospeed %d ispeed %d ret = %d\n", newtio->c_ospeed, newtio->c_ispeed, ret);
-	/* set termios setting */
-	newtio->c_iflag &= ~(ISTRIP|IUCLC|IGNCR|ICRNL|INLCR|ICANON|IXON|PARMRK);
+	newtio->c_iflag &= ~(ISTRIP|IUCLC|IGNCR|ICRNL|INLCR|ICANON|IXON|IXOFF|IXANY|PARMRK);
 	newtio->c_iflag |= (IGNBRK|IGNPAR);
 	newtio->c_lflag &= ~(ECHO|ICANON|ISIG);
 	newtio->c_cflag &= ~CBAUD;
 	newtio->c_cflag |= BOTHER;
+	/*
+	 * remove OPOST flag, thus when write first byte is (0a), 
+	 * It will not add (0d) automaticaly !! 
+	 * becaues \n in ASCII is (0a), \r in ASCII is (0d),
+	 * usually! \n\r is linked, if you only send 0a(\n), 
+	 * Kernel will think you lost \r(0d), so add od auto                                                                                                                                                  
+	*/
+	newtio->c_oflag &= ~(OPOST);
 	newtio->c_ospeed = 9600;
 	newtio->c_ispeed = 9600;
 	ret = ioctl(fd, TCSETS2, newtio);
@@ -192,7 +198,9 @@ int main(int argc, char **argv)
 	do{
 		FD_ZERO(&wfds);
 		FD_ZERO(&rfds);
-		FD_SET(fd, &wfds);
+		if(lock){
+			FD_SET(fd, &wfds);
+		}
 		FD_SET(fd, &rfds);		
 		tv.tv_sec = 5;
 		tv.tv_usec = 0;
@@ -221,11 +229,6 @@ int main(int argc, char **argv)
 		}
 		/* Send Respond */
 		if(FD_ISSET(fd, &wfds)){
-			if(!lock){
-				printf("<Modbus Serial Slave> wating for query ...\n");
-				sleep(2);
-				continue;
-			}
 			txlen = _choose_resp_frm(tx_buf, &sfpara, ret, &lock);
 			if(txlen == -1){
 				continue;
@@ -236,8 +239,8 @@ int main(int argc, char **argv)
 				print_data(tx_buf, wlen, SENDINCOMPLT);
 				break;
 			}
-//			print_data(tx_buf, wlen, SENDRESP);
-			polling_slvID(sfpara.slvID);
+			print_data(tx_buf, wlen, SENDRESP);
+//			polling_slvID(sfpara.slvID);
 			lock = 0;
 		}	
 		sleep(1);

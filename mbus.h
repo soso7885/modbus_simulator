@@ -46,7 +46,6 @@
 
 #define polling_slvID(slvID) \
 				do { ((slvID) == 32) ? (slvID)=1:(slvID)++; \
-					((slvID) == 10) ? (slvID)=11:(slvID); \
 					printf("Slave ID = %d\n", slvID); } while(0)
 
 static inline int carry(int bdiv, int div)

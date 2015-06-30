@@ -102,6 +102,14 @@ int _set_termois(int fd, struct termios2 *newtio)
 	newtio->c_lflag &= ~(ECHO|ICANON|ISIG);
 	newtio->c_cflag &= ~CBAUD;
 	newtio->c_cflag |= BOTHER;
+	/*
+	 * remove OPOST flag, thus when write first byte is (0a), 
+	 * It will not add (0d) automaticaly !! 
+	 * becaues \n in ASCII is (0a), \r in ASCII is (0d),
+	 * usually! \n\r is linked, if you only send 0a(\n), 
+	 * Kernel will think you lost \r(0d), so add od auto
+	*/
+	newtio->c_oflag &= ~(OPOST);
 	newtio->c_ospeed = 9600;
 	newtio->c_ispeed = 9600;
 	ret = ioctl(fd, TCSETS2, newtio);
@@ -164,7 +172,9 @@ int main(int argc, char **argv)
 		FD_ZERO(&wfds);
 		FD_ZERO(&rfds);
 		FD_SET(fd, &wfds);
-		FD_SET(fd, &rfds);		
+		if(wlen != 0){
+			FD_SET(fd, &rfds);		
+		}
 		tv.tv_sec = 2;
 		tv.tv_usec = 0;
 

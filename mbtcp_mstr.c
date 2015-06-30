@@ -176,7 +176,9 @@ int main(int argc, char **argv)
 	do{	
 		FD_ZERO(&rfds);
 		FD_ZERO(&wfds);
-		FD_SET(skfd, &rfds);
+		if(lock){
+			FD_SET(skfd, &rfds);
+		}
 		FD_SET(skfd, &wfds);
 		
 		tv.tv_sec = 5;
@@ -197,7 +199,6 @@ int main(int argc, char **argv)
 				break;
 			}
 //			print_data(tx_buf, wlen, SENDQRY);	
-
 			tmfpara.transID += INITTCPTRANSID; 
 			lock = 1;
 		}
@@ -221,9 +222,7 @@ int main(int argc, char **argv)
 				continue;
 			}
 //			print_data(rx_buf, rlen, RECVRESP);
-
-			polling_slvID(tmfpara.unitID);
-	 	
+//			polling_slvID(tmfpara.unitID);
 			lock = 0;
 		}
 		sleep(1);

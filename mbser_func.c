@@ -281,12 +281,11 @@ int ser_build_resp_read_status(unsigned char *tx_buf, struct frm_para *sfpara, u
 	for(i = 3; i < src_len; i++){	
 		src[i] = 0;
 	}
-	
 	printf("<Modbus Serial Slave> respond Read %s Status\n", fc==READCOILSTATUS?"Coil":"Input");
 
 	build_rtu_frm(tx_buf, src, src_len);
 	src_len += 2;
-	
+		
 	return src_len;
 } 
 /* 
