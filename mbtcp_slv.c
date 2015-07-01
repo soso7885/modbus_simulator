@@ -251,14 +251,17 @@ void *work_thread(void *data)
 		FD_ZERO(&rfds);
 		FD_ZERO(&wfds);
 		FD_SET(rskfd, &rfds);
-		FD_SET(rskfd, &wfds);
+		if(lock){
+			FD_SET(rskfd, &wfds);
+		}
 
-		tv.tv_sec = 2;
+		tv.tv_sec = 5;
 		tv.tv_usec = 0;
 
 		retval = select(rskfd + 1, &rfds, &wfds, 0, &tv);
 		if(retval <= 0){
-			printf("<Modbus Tcp Slave> select nothing ...\n");
+			printf("<Modbus Tcp Slave> Watting query ...\n");
+			sleep(3);
 			continue;
 		}
 
@@ -269,13 +272,13 @@ void *work_thread(void *data)
 				close(rskfd);
 				pthread_exit(NULL);
 			}
-/*
+
 			if(rlen != TCPSENDQUERYLEN){
 				printf("<Modbus Tcp Slave> Recv Incomplete !\n");
 				print_data(rx_buf, rlen, RECVINCOMPLT);
 				break;
 			}
-*/
+
 			ret = tcp_chk_pack_dest((struct tcp_frm *)rx_buf, tsfpara);
 			if(ret == -1){
 				memset(rx_buf, 0, FRMLEN);
@@ -300,9 +303,9 @@ void *work_thread(void *data)
 				break;
 			}
 //			print_data(tx_buf, txlen, SENDRESP);
+			lock = 0;
 		}
 
-		lock = 0;
 		sleep(1);
 	}while(1);
 

@@ -32,7 +32,7 @@ int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara)
 			sfpara->act = qact;
 		}else{
 			printf("<Modbus Serial Slave> Query set write status FUCKIN WRONG (fc = 0x05)\n");
-			return -3;							// the other fuckin respond excp code?
+			return -3;							
 		}
 		if(qstraddr != rstraddr){
 			printf("<Modbus Serial Slave> Query register address wrong (fc = 0x05)");
@@ -89,38 +89,25 @@ int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
 	unsigned char rfc;
 	unsigned int rrlen;
 	unsigned int ract;
+	char *s[EXCPMSGTOTAL] = {"<Modbus Serial Master> Read Coil Status (FC=01) exception !!",
+							 "<Modbus Serial Master> Read Input Status (FC=02) exception !!",
+							 "<Modbus Serial Master> Read Holding Registers (FC=03) exception !!",
+							 "<Modbus Serial Master> Read Input Registers (FC=04) exception !!",
+							 "<Modbus Serial Master> Force Single Coil (FC=05) exception !!",
+							 "<Modbus Serial Master> Preset Single Register (FC=06) exception !!"
+							};
 	
 	qfc = mfpara->fc;
 	qlen = mfpara->len;	
 	rfc = *(rx_buf+1);
 	rrlen = *(rx_buf+2);
 
-	if(qfc ^ rfc){	
-		if(rfc == READCOILSTATUS_EXCP){
-			printf("<Modbus Serial Master> Read Coil Status (FC=01) exception !!\n");
+	if(qfc ^ rfc){
+		if(rfc > PRESETEXCPSTATUS_EXCP || rfc < READCOILSTATUS_EXCP){   
+			printf("<Modbus Serial Master> Uknow respond function code : %x !!\n", rfc);
 			return -1;
-		}
-		if(rfc == READINPUTSTATUS_EXCP){
-			printf("<Modbus Serial Master> Read Input Status (FC=02) exception !!\n");
-			return -1;
-		}
-		if(rfc == READHOLDINGREGS_EXCP){
-			printf("<Modbus Serial Master> Read Holding Registers (FC=03) exception !!\n");
-			return -1;
-		}
-		if(rfc == READINPUTREGS_EXCP){
-			printf("<Modbus Serial Master> Read Input Registers (FC=04) exception !!\n");
-			return -1;
-		}
-		if(rfc == FORCESIGLEREGS_EXCP){
-			printf("<Modbus Serial Master> Force Single Coil (FC=05) exception !!\n");
-			return -1;
-		}
-		if(rfc == PRESETEXCPSTATUS_EXCP){
-			printf("<Modbus Serial Master> Preset Single Register (FC=06) exception !!\n");
-			return -1;
-		}
-		printf("<Modbus Serial Master> Uknow respond function code !!\n");
+        }	
+		printf("%s\n", s[rfc-READCOILSTATUS_EXCP]);
 		return -1;
 	}
 

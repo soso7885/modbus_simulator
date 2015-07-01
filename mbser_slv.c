@@ -125,18 +125,18 @@ int _set_termois(int fd, struct termios2 *newtio)
 		printf("<Modbus Serial Slave> ioctl : %s\n", strerror(errno));
 		return -1;
 	}
-	printf("<Modbus Serial Slave> BEFORE setting : ospeed %d ispeed %d ret = %d\n", newtio->c_ospeed, newtio->c_ispeed, ret);
+	printf("<Modbus Serial Slave> BEFORE setting : ospeed %d ispeed %d\n", newtio->c_ospeed, newtio->c_ispeed);
 	newtio->c_iflag &= ~(ISTRIP|IUCLC|IGNCR|ICRNL|INLCR|ICANON|IXON|IXOFF|IXANY|PARMRK);
 	newtio->c_iflag |= (IGNBRK|IGNPAR);
 	newtio->c_lflag &= ~(ECHO|ICANON|ISIG);
 	newtio->c_cflag &= ~CBAUD;
 	newtio->c_cflag |= BOTHER;
 	/*
-	 * remove OPOST flag, thus when write first byte is (0a), 
-	 * It will not add (0d) automaticaly !! 
-	 * becaues \n in ASCII is (0a), \r in ASCII is (0d),
-	 * usually! \n\r is linked, if you only send 0a(\n), 
-	 * Kernel will think you lost \r(0d), so add od auto                                                                                                                                                  
+	 * Close termios 'OPOST' flag, thus when write serial data
+	 * which first byte is '0a', it will not add '0d' automatically !! 
+	 * Becaues of '\n' in ASCII is '0a' and '\r' in ASCII is '0d'.
+	 * On usual, \n\r is linked, if you only send 0a(\n), 
+	 * Kernel will think you forget \r(0d), so add \r(0d) automatically.                       
 	*/
 	newtio->c_oflag &= ~(OPOST);
 	newtio->c_ospeed = 9600;
@@ -146,7 +146,7 @@ int _set_termois(int fd, struct termios2 *newtio)
 		printf("<Modbus Serial Slave> ioctl : %s\n", strerror(errno));
 		return -1;
 	}
-	printf("<Modbus Serial Slave> AFTER setting : ospeed %d ispeed %d ret = %d\n", newtio->c_ospeed, newtio->c_ispeed, ret);
+	printf("<Modbus Serial Slave> AFTER setting : ospeed %d ispeed %d\n", newtio->c_ospeed, newtio->c_ispeed);
 	
 	return 0;
 }
@@ -182,7 +182,6 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
-	/* open com port */
 	fd = open(path, O_RDWR);
 	if(fd == -1){
 		printf("<Modbus Serial Slave> open : %s\n", strerror(errno));
@@ -207,7 +206,8 @@ int main(int argc, char **argv)
 
 		retval = select(fd+1, &rfds, &wfds, 0, &tv);
 		if(retval == 0){
-			printf("<Modbus Serial Slave> select nothing\n");
+			printf("<Modbus Serial Slave> Watting for query\n");
+			sleep(3);
 			continue;
 		}
 		/* Recv Query */

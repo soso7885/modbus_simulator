@@ -2,6 +2,7 @@
 #define MBUS_H
 
 #define INITTCPTRANSID			1<<8
+#define EXCPMSGTOTAL			6
 
 #define TCPMBUSPROTOCOL			0
 #define TCPQUERYMSGLEN			6
@@ -30,14 +31,14 @@
 #define FORCESIGLEREGS_EXCP		133
 #define PRESETEXCPSTATUS_EXCP	134
 
-#define RECVRESP		1
-#define RECVQRY			2
-#define RECVEXCP		3
-#define RECVINCOMPLT	4
-#define SENDRESP		5
-#define SENDQRY			6
-#define SENDEXCP		7
-#define SENDINCOMPLT	8
+#define RECVRESP		0
+#define RECVQRY			1
+#define RECVEXCP		2
+#define RECVINCOMPLT	3
+#define SENDRESP		4
+#define SENDQRY			5
+#define SENDEXCP		6
+#define SENDINCOMPLT	7
 
 #define FRMLEN 260  /* | 1byte | 1byte | 0~255byte | 2byte | */
 
@@ -65,36 +66,17 @@ static inline int carry(int bdiv, int div)
 static inline int print_data(unsigned char *buf, int len, int status)
 {
 	int i;
+	char *s[8] = {"Recv Respond :", 
+				 "Recv Query :",
+				 "Recv Excption :",
+				 "Recv Incomplete :",
+				 "Send Respond :",
+				 "Send Query :",
+				 "Send Excption :",
+				 "Send Incomplete :"
+				};
 	
-	switch(status){
-		case RECVRESP:
-			printf("Recv Respond :");
-			break;
-		case RECVQRY:
-			printf("Recv Query :");
-			break;
-		case RECVEXCP:
-			printf("Recv Excption :");
-			break;
-		case RECVINCOMPLT:
-			printf("Recv Incomplete :");
-			break;
-		case SENDRESP:
-			printf("Send Respond :");
-			break;
-		case SENDQRY:
-			printf("Send Query :");
-			break;
-		case SENDEXCP:
-			printf("Send Excption :");
-			break;
-		case SENDINCOMPLT:
-			printf("Send Incomplete :");
-			break;
-		default:
-			printf("Show data error type !\n");
-			return -1;
-	}
+	printf("%s\n", s[status]);
 	for(i = 0; i < len; i++){
 		printf(" %x |", buf[i]);
 	}

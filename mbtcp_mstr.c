@@ -187,6 +187,7 @@ int main(int argc, char **argv)
 		retval = select(skfd + 1, &rfds, &wfds, 0, &tv);
 		if(retval <= 0){
 			printf("<Modbus Tcp Master> select nothing ...\n");
+			sleep(3);
 			continue;
 		}
 	

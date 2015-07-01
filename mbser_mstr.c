@@ -89,25 +89,23 @@ int _set_termois(int fd, struct termios2 *newtio)
 {
 	int ret;
 
-	/* get termios setting */
-	ret = ioctl(fd, TCGETS2, newtio);																																									
+	ret = ioctl(fd, TCGETS2, newtio);
 	if(ret < 0){
 		printf("<Modbus Serial Master> ioctl : %s\n", strerror(errno));
 		return -1;
 	}
-	printf("<Modbus Serial Master> BEFORE setting : ospeed %d ispeed %d ret = %d\n", newtio->c_ospeed, newtio->c_ispeed, ret);
-	/* set termios setting */
+	printf("<Modbus Serial Master> BEFORE setting : ospeed %d ispeed %d\n", newtio->c_ospeed, newtio->c_ispeed);
 	newtio->c_iflag &= ~(ISTRIP|IUCLC|IGNCR|ICRNL|INLCR|ICANON|IXON|IXOFF|PARMRK);
 	newtio->c_iflag |= (IGNBRK|IGNPAR);
 	newtio->c_lflag &= ~(ECHO|ICANON|ISIG);
 	newtio->c_cflag &= ~CBAUD;
 	newtio->c_cflag |= BOTHER;
 	/*
-	 * remove OPOST flag, thus when write first byte is (0a), 
-	 * It will not add (0d) automaticaly !! 
-	 * becaues \n in ASCII is (0a), \r in ASCII is (0d),
-	 * usually! \n\r is linked, if you only send 0a(\n), 
-	 * Kernel will think you lost \r(0d), so add od auto
+	 * Close termios 'OPOST' flag, thus when write serial data
+	 * which first byte is '0a', it will not add '0d' automatically !! 
+	 * Becaues of '\n' in ASCII is '0a' and '\r' in ASCII is '0d'.
+	 * On usual, \n\r is linked, if you only send 0a(\n), 
+	 * Kernel will think you forget \r(0d), so add \r(0d) automatically.
 	*/
 	newtio->c_oflag &= ~(OPOST);
 	newtio->c_ospeed = 9600;
@@ -117,7 +115,7 @@ int _set_termois(int fd, struct termios2 *newtio)
 		printf("<Modbus Serial Master> ioctl : %s\n", strerror(errno));
 		return -1;
 	}
-	printf("<Modbus Serial Master> AFTER setting : ospeed %d ispeed %d ret = %d\n", newtio->c_ospeed, newtio->c_ispeed, ret);
+	printf("<Modbus Serial Master> AFTER setting : ospeed %d ispeed %d\n", newtio->c_ospeed, newtio->c_ispeed);
 	
 	return 0;
 }
@@ -182,6 +180,7 @@ int main(int argc, char **argv)
 		if(retval <= 0){
 			wlen = 0;
 			printf("<Modbus Serial Master> Select nothing\n");
+			sleep(3);
 			continue;
 		}
 
@@ -204,8 +203,8 @@ int main(int argc, char **argv)
 		if(FD_ISSET(fd, &wfds) && !wlen){
 			wlen = write(fd, tx_buf, txlen);
 			ret = ioctl(fd, TIOCSERGETLSR, &lsr);
-			if(ret == -1){ // if device not support TIOCSERGETLSR, what should I do?
-//				printf("<Modbus Serial Master> TIOCSERGETLSR : %s\n", strerror(errno));	
+			if(ret == -1){ 
+				printf("<Modbus Serial Master> TIOCSERGETLSR : %s\n", strerror(errno));	
 				lsr = 1;
 			}else{
 				while(lsr == 0){

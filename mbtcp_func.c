@@ -123,6 +123,13 @@ int tcp_resp_parser(unsigned char *rx_buf, struct tcp_frm_para *tmfpara, int rle
 	unsigned short qlen;
 	unsigned short raddr;
 	unsigned short rrlen;
+	char *s[EXCPMSGTOTAL] = {"<Modbus TCP Master> Read Coil Status (FC=01) exception !!",
+							 "<Modbus TCP Master> Read Input Status (FC=02) exception !!",
+							 "<Modbus TCP Master> Read Holding Registers (FC=03) exception !!",
+							 "<Modbus TCP Master> Read Input Registers (FC=04) exception !!",
+							 "<Modbus TCP Master> Force Single Coil (FC=05) exception !!",
+							 "<Modbus TCP Master> Preset Single Register (FC=06) exception !!"
+							};
 	
 	qfc = tmfpara->fc;
 	rfc = *(rx_buf+7);
@@ -130,31 +137,15 @@ int tcp_resp_parser(unsigned char *rx_buf, struct tcp_frm_para *tmfpara, int rle
 	rrlen = *(rx_buf+8);
 	
 	if(qfc != rfc){
-		if(rfc == READCOILSTATUS_EXCP){
-			printf("<Modbus TCP Master> Read Coil Status (FC=01) exception !!\n");
-			return -1;
-		}else if(rfc == READINPUTSTATUS_EXCP){
-			printf("<Modbus TCP Master> Read Input Status (FC=02) exception !!\n");
-			return -1;
-		}else if(rfc == READHOLDINGREGS_EXCP){
-			printf("<Modbus TCP Master> Read Holding Registers (FC=03) exception !!\n");
-			return -1;
-		}else if(rfc == READINPUTREGS_EXCP){
-			printf("<Modbus TCP Master> Read Input Registers (FC=04) exception !!\n");
-			return -1;
-		}else if(rfc == FORCESIGLEREGS_EXCP){
-			printf("<Modbus TCP Master> Force Single Coil (FC=05) exception !!\n");
-			return -1;
-		}else if(rfc == PRESETEXCPSTATUS_EXCP){
-			printf("<Modbus TCP Master> Preset Single Register (FC=06) exception !!\n");
-			return -1;
-		}else{
+		if(rfc > PRESETEXCPSTATUS_EXCP || rfc < READCOILSTATUS_EXCP){
 			printf("<Modbus TCP Master> unknown respond function code : %x !!\n", rfc);
 			return -1;
-		}
+		}	
+		printf("%s\n", s[rfc - READCOILSTATUS_EXCP]);	
+		return -1;
 	}
 	
-	if(!(rfc ^ READCOILSTATUS) || !(rfc ^ READINPUTSTATUS)){		// fc = 0x01/0x02, get data len
+	if(!(rfc ^ READCOILSTATUS) || !(rfc ^ READINPUTSTATUS)){		// fc = 0x01/0x02, detect data len
 		act_byte = carry((int)qlen, 8);
 
 		if(rrlen != act_byte){
@@ -166,7 +157,7 @@ int tcp_resp_parser(unsigned char *rx_buf, struct tcp_frm_para *tmfpara, int rle
 			printf(" %x |", *(rx_buf+i));
 		}
 		printf("\n");
-	}else if(!(rfc ^ READHOLDINGREGS) || !(rfc ^ READINPUTREGS)){	// fc = 0x03/0x04, get data byte
+	}else if(!(rfc ^ READHOLDINGREGS) || !(rfc ^ READINPUTREGS)){	// fc = 0x03/0x04, detect data byte
 		if(rrlen != qlen << 1){
 			printf("<Modbus TCP Master> recv respond byte wrong !!\n");
 			return -1;
@@ -330,8 +321,6 @@ int tcp_build_resp_set_single(struct tcp_frm *tx_buf, struct thread_pack *tpack,
 	 
 	return txlen;
 }
-
-
 
 
 
