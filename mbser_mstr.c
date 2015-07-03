@@ -197,7 +197,8 @@ int main(int argc, char **argv)
 				print_data(rx_buf, rlen, RECVEXCP);
 				continue;
 			}
-//			print_data(rx_buf, rlen, RECVRESP);
+			debug_print_data(rx_buf, rlen, RECVRESP);
+			poll_slvID(mfpara.slvID);
 		}
 		/* Send Query */
 		if(FD_ISSET(fd, &wfds) && !wlen){

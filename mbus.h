@@ -40,14 +40,29 @@
 #define SENDEXCP		6
 #define SENDINCOMPLT	7
 
+//#define DEBUGMSG
+//#define POLL_SLVID
+
 #define FRMLEN 260  /* | 1byte | 1byte | 0~255byte | 2byte | */
 
 #define handle_error_en(en, msg) \
-				do { errno = en; perror(msg); exit(EXIT_FAILURE); } while (0)
+				do{ errno = en; perror(msg); exit(EXIT_FAILURE); }while (0)
 
-#define polling_slvID(slvID) \
-				do { ((slvID) == 32) ? (slvID)=1:(slvID)++; \
-					printf("Slave ID = %d\n", slvID); } while(0)
+#ifdef POLL_SLVID
+#define poll_slvID(slvID) \
+				do{ ((slvID) == 32) ? (slvID)=1:(slvID)++; \
+					printf("Slave ID = %d\n", slvID); }while(0)
+#else
+#define poll_slvID(slvID) \
+				do{}while(0)
+#endif
+#ifdef DEBUGMSG
+#define debug_print_data(buf, len, status) \
+				do{ print_data(buf, len, status);}while(0)
+#else
+#define debug_print_data(buf, len, status) \
+				do{}while(0)
+#endif
 
 static inline int carry(int bdiv, int div)
 {

@@ -284,9 +284,7 @@ void *work_thread(void *data)
 				memset(rx_buf, 0, FRMLEN);
 				continue;
 			}
-
-//			print_data(rx_buf, rlen, RECVQRY);
-		
+			debug_print_data(rx_buf, rlen, RECVQRY);
 			ret = tcp_query_parser((struct tcp_frm *)rx_buf, tpack);
 			lock = 1;
 		}
@@ -302,7 +300,8 @@ void *work_thread(void *data)
 				print_data(tx_buf, wlen, SENDINCOMPLT);
 				break;
 			}
-//			print_data(tx_buf, txlen, SENDRESP);
+			debug_print_data(tx_buf, txlen, SENDRESP);
+			poll_slvID(tsfpara.unitID);
 			lock = 0;
 		}
 

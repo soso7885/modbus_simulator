@@ -224,7 +224,7 @@ int main(int argc, char **argv)
 				continue;
 			}
 			lock = 1;
-//			print_data(tx_buf, rlen, RECVQRY);
+			debug_print_data(rx_buf, rlen, RECVQRY);
 			ret = ser_query_parser(rx_buf, &sfpara);
 		}
 		/* Send Respond */
@@ -239,8 +239,8 @@ int main(int argc, char **argv)
 				print_data(tx_buf, wlen, SENDINCOMPLT);
 				break;
 			}
-//			print_data(tx_buf, wlen, SENDRESP);
-//			polling_slvID(sfpara.slvID);
+			debug_print_data(tx_buf, wlen, SENDRESP);
+			poll_slvID(sfpara.slvID);
 			lock = 0;
 		}	
 		sleep(1);

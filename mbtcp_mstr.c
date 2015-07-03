@@ -199,7 +199,7 @@ int main(int argc, char **argv)
 				print_data(tx_buf, wlen, SENDINCOMPLT);
 				break;
 			}
-//			print_data(tx_buf, wlen, SENDQRY);	
+			debug_print_data(tx_buf, wlen, SENDQRY);
 			tmfpara.transID++; 
 			lock = 1;
 		}
@@ -222,8 +222,8 @@ int main(int argc, char **argv)
 				lock = 0;
 				continue;
 			}
-//			print_data(rx_buf, rlen, RECVRESP);
-//			polling_slvID(tmfpara.unitID);
+			debug_print_data(rx_buf, rlen, RECVRESP);
+			poll_slvID(tmfpara.unitID);
 			lock = 0;
 		}
 		sleep(1);
