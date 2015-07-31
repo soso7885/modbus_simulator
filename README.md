@@ -1,4 +1,6 @@
-# modbus
+# Modbus Simulator
+This is Modbus Simulator in Linux which support modbus RTU serial & modbus TCP !
+
 modbus RTU serial & modbus TCP
 Support function code 0x01 ~ 0x06
 
