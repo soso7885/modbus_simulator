@@ -5,6 +5,17 @@
 
 #include "mbus.h"
 
+struct mbus_serial_func ser_func = {
+	.chk_dest = ser_chk_dest,
+	.qry_parser = ser_query_parser,
+	.resp_parser = ser_resp_parser,
+	.build_qry = ser_build_query,
+	.build_excp = ser_build_resp_excp,
+	.build_0102_resp = ser_build_resp_read_status,
+	.build_0304_resp = ser_build_resp_read_regs,
+	.build_0506_resp = ser_build_resp_set_single,
+};
+
 int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara)
 {
 	unsigned char qfc;
@@ -47,7 +58,8 @@ int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara)
 		}
 		sfpara->act = qact;
 	}else{
-		if((qstraddr + qact <= rstraddr + rlen) && (qstraddr >= rstraddr)){	// Query addr+shift len must smaller than the contain we set in addr+shift len
+		// Query addr+shift len must smaller than the contain we set in addr+shift len
+		if((qstraddr + qact <= rstraddr + rlen) && (qstraddr >= rstraddr)){	
 			sfpara->straddr = qstraddr;
 			sfpara->len = qact;
 		}else{
@@ -60,7 +72,7 @@ int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara)
 }
 /*
  * Check query Slave ID correct or not
- * If wrong, return -1 the throw away it
+ * If wrong, return -1 then throw away it
  */
 int ser_chk_dest(unsigned char *rx_buf, struct frm_para *fpara)
 {
@@ -89,13 +101,14 @@ int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
 	unsigned char rfc;
 	unsigned int rrlen;
 	unsigned int ract;
-	char *s[EXCPMSGTOTAL] = {"<Modbus Serial Master> Read Coil Status (FC=01) exception !!",
-							 "<Modbus Serial Master> Read Input Status (FC=02) exception !!",
-							 "<Modbus Serial Master> Read Holding Registers (FC=03) exception !!",
-							 "<Modbus Serial Master> Read Input Registers (FC=04) exception !!",
-							 "<Modbus Serial Master> Force Single Coil (FC=05) exception !!",
-							 "<Modbus Serial Master> Preset Single Register (FC=06) exception !!"
-							};
+	char *s[EXCPMSGTOTAL] = {
+		"<Modbus Serial Master> Read Coil Status (FC=01) exception !!",
+		"<Modbus Serial Master> Read Input Status (FC=02) exception !!",
+		"<Modbus Serial Master> Read Holding Registers (FC=03) exception !!",
+		"<Modbus Serial Master> Read Input Registers (FC=04) exception !!",
+		"<Modbus Serial Master> Force Single Coil (FC=05) exception !!",
+		"<Modbus Serial Master> Preset Single Register (FC=06) exception !!"
+	};
 	
 	qfc = mfpara->fc;
 	qlen = mfpara->len;	

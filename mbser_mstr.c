@@ -12,6 +12,8 @@
 
 #include "mbus.h"
 
+extern struct mbus_serial_func ser_func;
+
 int _set_para(struct frm_para *mfpara)
 {
 	int cmd;
@@ -162,7 +164,7 @@ int main(int argc, char **argv)
 		return -1;
 	} 
 
-	txlen = ser_build_query(tx_buf, &mfpara);	
+	txlen = ser_func.build_qry(tx_buf, &mfpara);
 	print_data(tx_buf, txlen, SENDQRY);
 	wlen = 0;
 
@@ -186,13 +188,13 @@ int main(int argc, char **argv)
 
 		if(FD_ISSET(fd, &rfds) && lsr && wlen != 0){
 			rlen = read(fd, rx_buf, FRMLEN);			
-			ret = ser_chk_dest(rx_buf, &mfpara);
+			ret = ser_func.chk_dest(rx_buf, &mfpara);
 			if(ret == -1){
 				memset(rx_buf, 0, FRMLEN);
 				continue;
 			}
 			wlen = 0;
-			ret = ser_resp_parser(rx_buf, &mfpara, rlen);
+			ret = ser_func.resp_parser(rx_buf, &mfpara, rlen);
 			if(ret == -1){
 				print_data(rx_buf, rlen, RECVEXCP);
 				continue;

@@ -6,6 +6,18 @@
 #include <pthread.h>
 
 #include "mbus.h"
+
+struct mbus_tcp_func tcp_func = {
+	.chk_dest = tcp_chk_pack_dest,
+	.qry_parser = tcp_query_parser,
+	.resp_parser = tcp_resp_parser,
+	.build_qry = tcp_build_query,
+	.build_excp = tcp_build_resp_excp,
+	.build_0102_resp = tcp_build_resp_read_status,
+	.build_0304_resp = tcp_build_resp_read_regs, 
+	.build_0506_resp = tcp_build_resp_set_single,
+};
+	
 /*
  * Analyze modebus TCP query
  */
@@ -65,13 +77,13 @@ int tcp_query_parser(struct tcp_frm *rx_buf, struct thread_pack *tpack)
 			return -2;
 		}
 		pthread_mutex_lock(&(tpack->mutex));
-		tmpara->act = qact;			// lock!
+		tmpara->act = qact;		
 		pthread_mutex_unlock(&(tpack->mutex));
 	}else{
 		if((qstraddr + qact <= rstraddr + rlen) && (qstraddr >= rstraddr)){ // Query addr+shift len must smaller than the contain we set in addr+shift len
 			pthread_mutex_lock(&(tpack->mutex));
-			tmpara->straddr = qstraddr;		// lock!
-			tmpara->len = qact;				// lock!
+			tmpara->straddr = qstraddr;	
+			tmpara->len = qact;	
 			pthread_mutex_unlock(&(tpack->mutex));
 		}else{
 			printf("<Modbus TCP Slave> The address have no contain\n");

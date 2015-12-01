@@ -11,6 +11,8 @@
 
 #include "mbus.h"
 
+extern struct mbus_tcp_func tcp_func;
+
 int _set_para(struct tcp_frm_para *tmfpara)
 {
 	int cmd;
@@ -192,7 +194,7 @@ int main(int argc, char **argv)
 		}
 	
 		if(FD_ISSET(skfd, &wfds) && !lock){	
-			tcp_build_query((struct tcp_frm *)tx_buf, &tmfpara);
+			tcp_func.build_qry((struct tcp_frm *)tx_buf, &tmfpara);
             wlen = send(skfd, &tx_buf, TCPSENDQUERYLEN, MSG_NOSIGNAL);
 			if(wlen != TCPSENDQUERYLEN){
 				printf("<Modbus TCP Master> send incomplete !!\n");
@@ -211,12 +213,12 @@ int main(int argc, char **argv)
 				continue;
 			}
 
-			ret = tcp_chk_pack_dest((struct tcp_frm *)rx_buf, &tmfpara); 
+			ret = tcp_func.chk_dest((struct tcp_frm *)rx_buf, &tmfpara);
 			if(ret == -1){
 				memset(rx_buf, 0, FRMLEN);
 				continue;
 			}
-			ret = tcp_resp_parser(rx_buf, &tmfpara, rlen);
+			ret = tcp_func.resp_parser(rx_buf, &tmfpara, rlen);
 			if(ret == -1){
 				print_data(rx_buf, TCPRESPEXCPFRMLEN, RECVEXCP);
 				lock = 0;

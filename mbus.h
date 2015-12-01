@@ -166,7 +166,29 @@ struct tcp_frm_rsp {
 	unsigned char fc;
 	unsigned char byte;
 }__attribute__((packed));
+
+struct mbus_serial_func{
+	int (*chk_dest)(unsigned char*, struct frm_para*);
+	int (*qry_parser)(unsigned char*, struct frm_para*);
+	int (*resp_parser)(unsigned char*, struct frm_para*, int);
+	int (*build_qry)(unsigned char*, struct frm_para*);
+	int (*build_excp)(unsigned char*, struct frm_para*, unsigned char);
+	int (*build_0102_resp)(unsigned char*, struct frm_para*, unsigned char);
+	int (*build_0304_resp)(unsigned char*, struct frm_para*, unsigned char);
+	int (*build_0506_resp)(unsigned char*, struct frm_para*, unsigned char);
+};
 	
+struct mbus_tcp_func{
+	int (*chk_dest)(struct tcp_frm*, struct tcp_frm_para*);
+	int (*qry_parser)(struct tcp_frm*, struct thread_pack*);
+	int (*resp_parser)(unsigned char*, struct tcp_frm_para*, int);
+	int (*build_qry)(struct tcp_frm*, struct tcp_frm_para*);
+	int (*build_excp)(struct tcp_frm_excp*, struct tcp_frm_para*, unsigned char);
+	int (*build_0102_resp)(struct tcp_frm_rsp*, struct thread_pack*, unsigned char);
+	int (*build_0304_resp)(struct tcp_frm_rsp*, struct thread_pack*, unsigned char);
+	int (*build_0506_resp)(struct tcp_frm*, struct thread_pack*, unsigned char);
+};
+		
 void build_rtu_frm(unsigned char *dst_buf, unsigned char *src_buf, unsigned char lenth);
 
 int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara);

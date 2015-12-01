@@ -12,6 +12,8 @@
 
 #include "mbus.h"
 
+extern struct mbus_serial_func ser_func;
+
 int _set_para(struct frm_para *sfpara)
 {
 	int cmd;
@@ -77,22 +79,22 @@ int _choose_resp_frm(unsigned char *tx_buf, struct frm_para *sfpara, int ret, in
 	if(!ret){
 		switch(sfpara->fc){
 			case READCOILSTATUS:
-				txlen = ser_build_resp_read_status(tx_buf, sfpara, READCOILSTATUS);
+				txlen = ser_func.build_0102_resp(tx_buf, sfpara, READCOILSTATUS);
 				break;
 			case READINPUTSTATUS:
-				txlen = ser_build_resp_read_status(tx_buf, sfpara, READINPUTSTATUS);
+				txlen = ser_func.build_0102_resp(tx_buf, sfpara, READINPUTSTATUS);
 				break;
 			case READHOLDINGREGS:
-				txlen = ser_build_resp_read_regs(tx_buf, sfpara, READHOLDINGREGS);
+				txlen = ser_func.build_0304_resp(tx_buf, sfpara, READHOLDINGREGS);
 				break;
 			case READINPUTREGS:
-				txlen = ser_build_resp_read_regs(tx_buf, sfpara, READINPUTREGS);
+				txlen = ser_func.build_0304_resp(tx_buf, sfpara, READINPUTREGS);
 				break;
 			case FORCESIGLEREGS:
-				txlen = ser_build_resp_set_single(tx_buf, sfpara, FORCESIGLEREGS);
+				txlen = ser_func.build_0506_resp(tx_buf, sfpara, FORCESIGLEREGS);
 				break;
 			case PRESETEXCPSTATUS:
-				txlen = ser_build_resp_set_single(tx_buf, sfpara, PRESETEXCPSTATUS);
+				txlen = ser_func.build_0506_resp(tx_buf, sfpara, PRESETEXCPSTATUS);
 				break;
 			default:
 				printf("<Modbus Serial Slave> unknown function code : %d\n", sfpara->fc);
@@ -103,20 +105,20 @@ int _choose_resp_frm(unsigned char *tx_buf, struct frm_para *sfpara, int ret, in
 		*lock = 0;
 		return -1;
 	}else if(ret == -2){
-		txlen = ser_build_resp_excp(tx_buf, sfpara, EXCPILLGFUNC);
+		txlen = ser_func.build_excp(tx_buf, sfpara, EXCPILLGFUNC);
 		print_data(tx_buf, txlen, SENDEXCP);
 	}else if(ret == -3){
-		txlen = ser_build_resp_excp(tx_buf, sfpara, EXCPILLGDATAVAL);
+		txlen = ser_func.build_excp(tx_buf, sfpara, EXCPILLGDATAVAL);
 		print_data(tx_buf, txlen, SENDEXCP); 
 	}else if(ret == -4){
-		txlen = ser_build_resp_excp(tx_buf, sfpara, EXCPILLGDATAADDR);
+		txlen = ser_func.build_excp(tx_buf, sfpara, EXCPILLGDATAADDR);
 		print_data(tx_buf, txlen, SENDEXCP); 
 	}
 
 	return txlen;
 }
 
-int _set_termois(int fd, struct termios2 *newtio)
+int _set_termios(int fd, struct termios2 *newtio)
 {
 	int ret;
 
@@ -189,7 +191,7 @@ int main(int argc, char **argv)
 	}
 	printf("<Modbus Serial Slave> Com port fd = %d\n", fd);
 
-	if(_set_termois(fd, &newtio) == -1){
+	if(_set_termios(fd, &newtio) == -1){
 		printf("<Modbus Serial Slave> set termios fail\n");
 		return -1;
 	} 
@@ -252,14 +254,4 @@ int main(int argc, char **argv)
 	
 	return 0;
 }
-	
-	
-
-	
-	
-	
-
-	
-	
-	
 
