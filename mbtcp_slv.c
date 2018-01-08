@@ -14,113 +14,122 @@
 
 #include "mbus.h" 
 
-#define BACKLOG		10
+#define BACKLOG	10
+#define mb_printf(str, args...) printf("<Modbus TCP Slave> "str, ##args)
 
-extern struct mbus_tcp_func tcp_func;
+unsigned char func_coil[] = {
+	READCOILSTATUS,
+	FORCESINGLECOIL,
+	FORCEMULTICOILS
+};
 
-int _set_para(struct tcp_frm_para *tsfpara){
-	int tmp;
-	int cmd;	
-	unsigned short straddr;
+unsigned char func_reg[] = {
+	READHOLDINGREGS,
+	PRESETSINGLEREG,
+	PRESETMULTIREGS
+};
+
+unsigned char func_istat[] = {
+	READINPUTSTATUS
+};
+
+unsigned char func_ireg[] = {
+	READINPUTREGS
+};
+
+struct thread_pack {
+	uint8_t uid;
+	int saddr;
+	int len;
+	uint8_t *data;
+	int func_cnt;
+	uint8_t *func_list;
+	int rskfd;
+	pthread_mutex_t mutex;
+};
+
+void * _prepare_data(int cmd, int len)
+{
+	void *data;
+	int datalen;
+
+	switch(cmd){
+		case 1:
+		case 2:
+			datalen = len;
+			break;
+		case 3:
+		case 4:
+			datalen = 2 * len;
+			break;
+	}
+	data = malloc(datalen);
+	memset(data, 0, datalen);
+
+	return data;
+}
+
+int set_param(struct thread_pack *tpack)
+{
+	int cmd;
 	
 	printf("Modbus TCP Slave !\nEnter Unit ID : ");
-	scanf("%hhu", &tsfpara->unitID);
-	tsfpara->potoID = (unsigned char)TCPMBUSPROTOCOL;
-	printf("Enter Function code : ");
+	scanf("%hhu", &tpack->uid);
+	printf("node type :\n");
+	printf("1        Coil Status\n");
+	printf("2        Input Status\n");
+	printf("3        Holding Registers\n");
+	printf("4        Input Registers\n");
+	printf("Enter Node Type : ");
 	scanf("%d", &cmd);
 	switch(cmd){
 		case 1:
-			tsfpara->fc = READCOILSTATUS;
+			tpack->func_cnt = sizeof(func_coil);
+			tpack->func_list = func_coil;
 			break;
 		case 2:
-			tsfpara->fc = READINPUTSTATUS;
+			tpack->func_cnt = sizeof(func_istat);
+			tpack->func_list = func_istat;
 			break;
 		case 3:
-			tsfpara->fc = READHOLDINGREGS;
+			tpack->func_cnt = sizeof(func_reg);
+			tpack->func_list = func_reg;
 			break;
 		case 4:
-			tsfpara->fc = READINPUTREGS;
-			break;
-		case 5:
-			tsfpara->fc = FORCESIGLEREGS;
-			break;
-		case 6:
-			tsfpara->fc = PRESETEXCPSTATUS;
+			tpack->func_cnt = sizeof(func_ireg);
+			tpack->func_list = func_ireg;
 			break;
 		default:
-			printf("Function code :\n");
-			printf("1        Read Coil Status\n");
-			printf("2        Read Input Status\n");
-			printf("3        Read Holding Registers\n");
-			printf("4        Read Input Registers\n");
-			printf("5        Force Single Coil\n");
-			printf("6        Preset Single Register\n");
+		
 			return -1;
-	}	
-	printf("Setting Start addr : ");
-	scanf("%hu", &straddr);
-	tsfpara->straddr = straddr - 1;
-	if(cmd == 1 || cmd == 2){
-		printf("Setting address shift length : ");
-		scanf("%hu", &tsfpara->len);
-	}else if(cmd == 3 || cmd == 4){
-		printf("Setting address shift length : ");
-		scanf("%d", &tmp);
-		if(tmp > 110 || tmp < 0){
-			printf("Please DO NOT exceed 110 !\n");
-			printf("Come on, dude. That's just a testing progam ...\n");
-			exit(0);
-		}
-		tsfpara->len = (unsigned short)tmp;
 	}
+
+	tpack->saddr = 0;
+	do{	
+		if(tpack->saddr < 0){
+			printf("start address must be a positive value!\n");
+		}
+		printf("Set Start addr (start from 0): ");
+		scanf("%d", &tpack->saddr);
+	}while(tpack->saddr < 0);
+
+	tpack->len = 1;
+	do{
+		if(tpack->saddr < 1){
+			printf("data length must be larger than 1!\n");
+		}
+		printf("Set Data Length: ");
+		scanf("%d", &tpack->len);
+	}while(tpack->len < 1);
+
+
+	tpack->data = _prepare_data(cmd, tpack->len);
+
 	return 0;
 }
 
-int _choose_resp_frm(unsigned char *tx_buf, struct thread_pack *tpack, int ret, int *lock)
-{
-	int txlen;
-	struct tcp_frm_para *tsfpara;
-	
-	tsfpara = tpack->tsfpara;	
-	if(!ret){
-		switch(tsfpara->fc){
-			case READCOILSTATUS:
-				txlen = tcp_func.build_0102_resp((struct tcp_frm_rsp *)tx_buf, tpack, READCOILSTATUS);
-				break;
-			case READINPUTSTATUS:
-				txlen = tcp_func.build_0102_resp((struct tcp_frm_rsp *)tx_buf, tpack, READINPUTSTATUS);
-				break;
-			case READHOLDINGREGS:
-				txlen = tcp_func.build_0304_resp((struct tcp_frm_rsp *)tx_buf, tpack, READHOLDINGREGS);
-				break;
-			case READINPUTREGS:
-				txlen = tcp_func.build_0304_resp((struct tcp_frm_rsp *)tx_buf, tpack, READINPUTREGS);
-				break;
-			case FORCESIGLEREGS:
-				txlen = tcp_func.build_0506_resp((struct tcp_frm *)tx_buf, tpack, FORCESIGLEREGS);
-				break;
-			case PRESETEXCPSTATUS:
-				txlen = tcp_func.build_0506_resp((struct tcp_frm *)tx_buf, tpack, PRESETEXCPSTATUS);
-				break;
-			default:
-				printf("<Modbus TCP Slave> unknown function code : %d\n", tpack->tsfpara->fc);
-				return -1;
-			}
-	}else if(ret == -1){
-		txlen = tcp_func.build_excp((struct tcp_frm_excp *)tx_buf, tsfpara, EXCPILLGFUNC);
-		print_data(tx_buf, txlen, SENDEXCP);	
-	}else if(ret == -2){
-		txlen = tcp_func.build_excp((struct tcp_frm_excp *)tx_buf, tsfpara, EXCPILLGDATAADDR);
-		print_data(tx_buf, txlen, SENDEXCP);
-	}else if(ret == -3){
-		txlen = tcp_func.build_excp((struct tcp_frm_excp *)tx_buf, tsfpara, EXCPILLGDATAVAL);
-		print_data(tx_buf, txlen, SENDEXCP);
-	}
 
-	return txlen;
-}
-
-int _create_sk_svr(char *port)
+static int create_sk_svr(char *port)
 {
 	int skfd;
 	int ret;
@@ -128,8 +137,6 @@ int _create_sk_svr(char *port)
 	struct addrinfo hints;	
 	struct addrinfo *res;	
 	struct addrinfo *p;
-	
-	printf("PORT : %s\n", port);
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
@@ -139,57 +146,51 @@ int _create_sk_svr(char *port)
 	
 	ret = getaddrinfo(NULL, port, &hints, &res);
 	if(ret != 0){
-		printf("<Modbus Tcp Slave> getaddrinfo : %s\n", gai_strerror(ret));
-		exit(0);
+		mb_printf("getaddrinfo : %s\n", gai_strerror(ret));
+		return -1;
 	}
 	
 	for(p = res; p != NULL; p = p->ai_next){
 		skfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-		if(skfd == -1){
+		if(skfd == -1)
 			continue;
-		}else{
-			printf("<Modbus Tcp Slave> sockFD = %d\n", skfd);
-		}
 		
 		opt = 1;
 		ret = setsockopt(skfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 		if(ret == -1){
-			printf("<Modbus Tcp Slave> setsockopt : %s\n", strerror(errno));
+			mb_printf("setsockopt : %s\n", strerror(errno));
 			close(skfd);
-			exit(0);
+			return -1;
 		}
 	
 		ret = bind(skfd, p->ai_addr, p->ai_addrlen);
 		if(ret == -1){
-			printf("<Modbus Tcp Slave> bind : %s\n", strerror(errno));
+			mb_printf("bind : %s\n", strerror(errno));
 			close(skfd);
 			continue;
 		}
-		printf("<Modbus Tcp Slave> bind success\n");
-	
 		break;
 	}
 	
 	if(p == NULL){
-		printf("<Modbus Tcp Slave> create socket fail ...\n");
+		mb_printf("create socket failed\n");
 		close(skfd);
-		exit(0);
+		return -1;
 	}
 	
 	ret = listen(skfd, BACKLOG);
 	if(ret == -1){
-		printf("<Modbus Tcp Slave> listen : %s\n", strerror(errno));
+		mb_printf("listen : %s\n", strerror(errno));
 		close(skfd);
-		exit(0);
+		return -1;
 	}
-
 	freeaddrinfo(res);
-	printf("<Modbus Tcp Slave> Waiting for connect ...\n");
+	mb_printf("Waiting for connect ...\n");
 	
 	return skfd;
 }
 
-int _sk_accept(int skfd)
+static int sk_accept(int skfd)
 {
 	int rskfd;
 	char addr[INET6_ADDRSTRLEN];
@@ -202,114 +203,223 @@ int _sk_accept(int skfd)
 	
 	rskfd = accept(skfd, (struct sockaddr*)&acp_addr, &addrlen);
 	if(rskfd == -1){
-		close(rskfd);
-		printf("<Modbus Tcp Slave> accept : %s\n", strerror(errno));
-		exit(0);
+		mb_printf("accept : %s\n", strerror(errno));
+		return -1;
 	}
 	
 	if(acp_addr.ss_family == AF_INET){
 		p = (struct sockaddr_in *)&acp_addr;
 		inet_ntop(AF_INET, &p->sin_addr, addr, sizeof(addr));
-		printf("<Modbus Tcp Slave> recv from IP : %s\n", addr);
+		mb_printf("recv from IP : %s\n", addr);
 	}else if(acp_addr.ss_family == AF_INET6){
 		s = (struct sockaddr_in6 *)&acp_addr;
 		inet_ntop(AF_INET6, &s->sin6_addr, addr, sizeof(addr));
-		printf("<Modbus Tcp Slave> recv from IP : %s\n", addr);
+		mb_printf("recv from IP : %s\n", addr);
 	}else{
-		printf("<Modbus Tcp Slave> fuckin wried ! What is the recv addr family?");
+		mb_printf("fuckin wried ! What is the recv addr family?");
 		return -1;
 	}
 	
 	return rskfd;
 }
 
+char _handle_mbus_info(mbus_cmd_info *mbusinfo, struct thread_pack *info, uint8_t *tmp_coil, uint8_t **dataptr)
+{
+	int i;
+//	const struct mbus_tcp_frm * rx_frame = rx_buf;
+	unsigned short * ptr_reg;
+	int bitshift;
+	int byteshift;
+
+	for(i = 0; i < info->func_cnt; i++){
+		if(mbusinfo->info.fc == info->func_list[i]){
+			break;
+		}
+	}
+
+	if(i == info->func_cnt){
+		return EXCPILLGFUNC;
+	}
+
+	switch(mbusinfo->info.fc){
+		case READCOILSTATUS:
+		case READINPUTSTATUS:
+			if(mbusinfo->query.addr < info->saddr){
+				return EXCPILLGDATAADDR;
+			}
+			if((mbusinfo->query.len + mbusinfo->query.addr) > (info->saddr + info->len)){
+				return EXCPILLGDATAADDR;
+			}
+			memset(tmp_coil, 0, 32);
+			//pthread_mutex_lock(info->mutex);
+			for(i = 0; i < mbusinfo->query.len; i++){
+				bitshift = i % 8;
+				byteshift = i / 8;
+				if(info->data[mbusinfo->query.addr + i]){
+					tmp_coil[byteshift] |= 0x1 << bitshift;
+				}
+
+			}
+			//pthread_mutex_unlock(info->mutex);
+			*dataptr = tmp_coil;
+			break;
+		case FORCESINGLECOIL:
+
+			if(mbusinfo->swrite.addr < info->saddr){
+				return EXCPILLGDATAADDR;
+			}
+			if(mbusinfo->swrite.addr > (info->saddr + info->len)){
+				return EXCPILLGDATAADDR;
+			}
+			//pthread_mutex_lock(info->mutex);
+			if(mbusinfo->swrite.data){
+				info->data[mbusinfo->swrite.addr] = 1;
+			}else{
+				info->data[mbusinfo->swrite.addr] = 0;
+			}
+			//pthread_mutex_unlock(info->mutex);
+			break;
+		case FORCEMULTICOILS:
+			if(mbusinfo->mwrite.addr < info->saddr){
+				return EXCPILLGDATAADDR;
+			}
+			if((mbusinfo->mwrite.addr + mbusinfo->mwrite.len)> (info->saddr + info->len)){
+				return EXCPILLGDATAADDR;
+			}
+			//pthread_mutex_lock(info->mutex);
+			memcpy(&info->data[mbusinfo->mwrite.addr], 
+				mbusinfo->mwrite.data, 
+				mbusinfo->mwrite.bcnt);
+
+			//pthread_mutex_unlock(info->mutex);
+			break;
+		case READHOLDINGREGS:
+		case READINPUTREGS:
+			if(mbusinfo->query.addr < info->saddr){
+				return EXCPILLGDATAADDR;
+			}
+			if((mbusinfo->query.len + mbusinfo->query.addr) > (info->saddr + info->len)){
+				return EXCPILLGDATAADDR;
+			}
+			//pthread_mutex_lock(info->mutex);
+			*dataptr = &info->data[mbusinfo->query.addr * sizeof(short)];
+
+			//pthread_mutex_unlock(info->mutex);
+			break;
+		case PRESETSINGLEREG:
+			if(mbusinfo->swrite.addr < info->saddr){
+				return EXCPILLGDATAADDR;
+			}
+			if(mbusinfo->swrite.addr > (info->saddr + info->len)){
+				return EXCPILLGDATAADDR;
+			}
+			printf("write to address %d\n", mbusinfo->swrite.addr);
+			//pthread_mutex_lock(info->mutex);
+			ptr_reg = (unsigned short *)info->data;
+			ptr_reg[mbusinfo->swrite.addr] = htons(mbusinfo->swrite.data);
+
+			break;
+		case PRESETMULTIREGS:
+			if(mbusinfo->mwrite.addr < info->saddr){
+				return EXCPILLGDATAADDR;
+			}
+			if((mbusinfo->mwrite.addr + mbusinfo->mwrite.len)> (info->saddr + info->len)){
+				return EXCPILLGDATAADDR;
+			}
+			ptr_reg = (unsigned short *)info->data;
+			
+			for(i = 0; i < mbusinfo->mwrite.bcnt; i++){
+				printf("[%d]", mbusinfo->mwrite.addr + 1);
+			}
+/*			printf("addr = %d ptr = %x bcnt = %hhu\n",mbusinfo->mwrite.addr, &ptr_reg[mbusinfo->mwrite.addr], mbusinfo->mwrite.bcnt);
+			for(i = 0; i < mbusinfo->mwrite.bcnt; i++){
+				printf("data [%d] %02x\n", i, *mbusinfo->mwrite.data);//rx_frame->mbus.mwrite.data[i]);
+			}*/
+			memcpy(&ptr_reg[mbusinfo->mwrite.addr], 
+					mbusinfo->mwrite.data,
+					(int)mbusinfo->mwrite.bcnt);
+
+/*			for(i = 0; i < mbusinfo->mwrite.len; i++){
+				printf("pool [%d] %04x\n", i,  ptr_reg[i + mbusinfo->mwrite.addr]);
+			}*/
+
+			break;
+		default:
+			printf("%s unknown command\n", __func__);
+			return -1;
+			break;
+	}
+
+	return 0;
+}
+
+#define BUF_LEN		1024
 void *work_thread(void *data)
 {
-	int wlen;
-	int txlen;
-	int rlen;
-	int retval;
 	int ret;
-	int rskfd;
-	int lock;	
+	int retval;
+	uint8_t rx_buf[BUF_LEN];
+	uint8_t tx_buf[BUF_LEN];
+	uint8_t tmp_coil[128];
+	struct thread_pack *tpack = (struct thread_pack *)data;
+	int rskfd = tpack->rskfd;
+
+//	mb_printf("Create work thread, connect fd = %d | thread ID = %lu\n", rskfd, pthread_self());
+	pthread_detach(pthread_self());
+
+	int tlen, rlen;
 	fd_set rfds;
-	fd_set wfds;
-	struct timeval tv;
-	struct thread_pack *tpack;
-	struct tcp_frm_para *tsfpara;
-	unsigned char rx_buf[FRMLEN];
-	unsigned char tx_buf[FRMLEN];
-
-	tpack = (struct thread_pack *)data;
-	rskfd = tpack->rskfd;
-	tsfpara = tpack->tsfpara;
-
-	lock = 0;
-	printf("<Modbus Tcp Slave> Create work thread, connect fd = %d | thread ID = %lu\n",
-			 rskfd, pthread_self());
-
+	mbus_cmd_info cmdinfo;
+	mbus_tcp_info tcpinfo;
+	mbus_resp_info respinfo;
 	do{
 		FD_ZERO(&rfds);
-		FD_ZERO(&wfds);
 		FD_SET(rskfd, &rfds);
-		if(lock){
-			FD_SET(rskfd, &wfds);
+
+		retval = select(rskfd + 1, &rfds, 0, 0, 0);
+		if(retval < 0){
+			mb_printf("Select failed!\n");
+			break;
 		}
+		
+		if(retval == 0) continue;
 
-		tv.tv_sec = 5;
-		tv.tv_usec = 0;
-
-		retval = select(rskfd + 1, &rfds, &wfds, 0, &tv);
-		if(retval <= 0){
-			printf("<Modbus Tcp Slave> Watting query ...\n");
-			sleep(3);
-			continue;
-		}
-
-		if(FD_ISSET(rskfd, &rfds)){
-			rlen = recv(rskfd, rx_buf, sizeof(rx_buf), 0);
-			if(rlen < 1){
-				printf("<Modbus Tcp Slave> disconnect(rlen = %d) thread ID = %lu\n", rlen, pthread_self());
-				close(rskfd);
-				pthread_exit(NULL);
-			}
-
-			if(rlen != TCPSENDQUERYLEN){
-				printf("<Modbus Tcp Slave> Recv Incomplete !\n");
-				print_data(rx_buf, rlen, RECVINCOMPLT);
-				break;
-			}
-
-			ret = tcp_func.chk_dest((struct tcp_frm *)rx_buf, tsfpara);
-			if(ret == -1){
-				memset(rx_buf, 0, FRMLEN);
-				continue;
-			}
-			debug_print_data(rx_buf, rlen, RECVQRY);
-			ret = tcp_func.qry_parser((struct tcp_frm *)rx_buf, tpack);
-			lock = 1;
+		rlen = recv(rskfd, rx_buf, sizeof(rx_buf), 0);
+		if(rlen < 1){
+//			mb_printf("disconnect(rlen = %d) thread ID = %lu\n", rlen, pthread_self());
+			break;
 		}
 			
-		if(FD_ISSET(rskfd, &wfds) && lock){
-			txlen = _choose_resp_frm(tx_buf, tpack, ret, &lock);
-			if(txlen == -1){
-				break;
-			}
-			wlen = send(rskfd, tx_buf, txlen, 0);
-			if(wlen != txlen){
-				printf("<Modbus TCP Slave> send respond incomplete !!\n");
-				print_data(tx_buf, wlen, SENDINCOMPLT);
-				break;
-			}
-			debug_print_data(tx_buf, txlen, SENDRESP);
-			poll_slvID(tsfpara.unitID);
-			lock = 0;
-		}
+		tcp_get_cmdinfos(rx_buf, rlen, &cmdinfo, &tcpinfo);
 
-		sleep(1);
+		//printf("tid = %u fc = %hhu uid = %u\n", tcpinfo.transID, cmdinfo.info.fc, cmdinfo.info.unitID);
+		uint8_t *dataptr = NULL;
+		pthread_mutex_lock(&tpack->mutex);
+		ret = _handle_mbus_info(&cmdinfo, tpack, tmp_coil, &dataptr);
+		switch(ret){
+			case 0:
+				//printf("__handle seccuess dataptr = %x tmp_coil = %x datapool = %x\n", dataptr, tmp_coil, tpack->data);
+				mbus_cmd_resp(&cmdinfo, &respinfo, dataptr);
+				tlen = tcp_build_resp(tx_buf, BUF_LEN, &respinfo, &tcpinfo);
+				break;
+			case EXCPILLGFUNC:
+			case EXCPILLGDATAADDR:
+				tlen = tcp_build_excp(tx_buf, BUF_LEN, &cmdinfo, &tcpinfo, ret);
+				break;
+			default:
+				mb_printf("unknown ret = %d\n", ret);
+				tlen = 0;
+				break;
+		}
+		pthread_mutex_unlock(&tpack->mutex);
+		if(tlen > 0)
+			send(rskfd, tx_buf, tlen, 0);
+
 	}while(1);
 
-	pthread_detach(pthread_self());
+	if(rskfd > 0)
+		close(rskfd);
+	
 	pthread_exit(NULL);
 }
 
@@ -318,75 +428,37 @@ int main(int argc, char **argv)
 	int skfd;
 	int rskfd;
 	int ret;
-	char *port;
 	pthread_t tid;
-	pthread_attr_t attr;
-	struct sched_param param;
 	struct thread_pack tpack;
-	struct tcp_frm_para tsfpara;
-	struct tcp_tmp_frm tmpara;
 	
 	if(argc < 2){
-		printf("Usage : ./mbtcp_slv <PORT> \n");
-		exit(0);
-	}
-	port = argv[1];
-
-	ret = _set_para(&tsfpara);
-	if(ret == -1){
-		printf("<Modbus Tcp Slave> set parameter fail !!\n");
+		printf("%s [PORT]\n", argv[0]);
 		exit(0);
 	}
 
-	skfd = _create_sk_svr(port);
-	if(skfd == -1){
-		printf("<Modbus Tcp Slave> god damn wried !!\n");
-		exit(0);
-	}
+	set_param(&tpack);
+
+	skfd = create_sk_svr(argv[1]);
+	if(skfd == -1)
+		return -1;
 	
-	tpack.tmpara = &tmpara;
-	tpack.tsfpara = &tsfpara;
 	pthread_mutex_init(&(tpack.mutex), NULL);
-	pthread_attr_init(&attr);
-	pthread_attr_setschedpolicy(&attr, SCHED_RR);	// use RR scheduler
-	param.sched_priority = 6;						// set priority 10
-	pthread_attr_setschedparam(&attr, &param);
 	
 	do{	
-		rskfd = _sk_accept(skfd);
-		if(rskfd == -1){
-			printf("<Modbus Tcp Slave> god damn wried !!\n");
+		rskfd = sk_accept(skfd);
+		if(rskfd == -1)
 			break;
-		}
 	
 		tpack.rskfd = rskfd;
-		tpack.tsfpara = &tsfpara;
+		
 		ret = pthread_create(&tid, NULL, work_thread, (void *)&tpack);	
-		if(ret != 0){
+		if(ret != 0)
 			handle_error_en(ret, "pthread_create");
-		}	
 	}while(1);
+
 	close(skfd);
 	pthread_mutex_destroy(&(tpack.mutex));
-	pthread_attr_destroy(&attr);
+
 	return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#undef mb_printf

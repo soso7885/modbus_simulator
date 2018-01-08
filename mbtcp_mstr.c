@@ -11,88 +11,84 @@
 
 #include "mbus.h"
 
-extern struct mbus_tcp_func tcp_func;
+#define mb_printf(str, args...) printf("<Modbus TCP Master> "str, ##args)
 
-int _set_para(struct tcp_frm_para *tmfpara)
+uint8_t *wdata = NULL;
+int bytecnt = 0;
+unsigned int delay = 0;
+
+static void set_para(mbus_cmd_info *cmd)
 {
-	int cmd;
-	int tmp;
-	unsigned short straddr;
-
-	printf("Modbus TCP Master mode !\n");
-	tmfpara->transID = INITTCPTRANSID;
-	tmfpara->potoID = (unsigned char)TCPMBUSPROTOCOL;
-	tmfpara->msglen = (unsigned char)TCPQUERYMSGLEN;
-	printf("Enter Unit ID : ");
-	scanf("%d", &tmp);
-	memcpy(&tmfpara->unitID, &tmp, sizeof(tmfpara->unitID));	
+	mb_printf("Enter Unit ID : ");
+	scanf("%hhu", &cmd->info.unitID);
+	printf("Function code :\n"
+			"%hhu\t\tRead Coil Status\n"
+			"%hhu\t\tRead Input Status\n"
+			"%hhu\t\tRead Holding Register\n"
+			"%hhu\t\tRead Input Register\n"
+			"%hhu\t\tForce Single Coil\n"
+			"%hhu\t\tPreset Single Register\n"
+			"%hhu\t\tForce multi-Coil\n"
+			"%hhu\t\tPreset multi-Register\n",
+			READCOILSTATUS, READINPUTSTATUS, 
+			READHOLDINGREGS, READINPUTREGS,
+			FORCESINGLECOIL, PRESETSINGLEREG, 
+			FORCEMULTICOILS, PRESETMULTIREGS);
 	printf("Enter Function code : ");
-	scanf("%d", &cmd);
-	switch(cmd){
-		case 1:
-			tmfpara->fc = READCOILSTATUS;
+	scanf("%hhu", &cmd->info.fc);
+	switch(cmd->info.fc){
+		case READCOILSTATUS:
+		case READINPUTSTATUS:
+		case READHOLDINGREGS:
+		case READINPUTREGS:
+			printf("Setting Start addr (start from 0): ");
+			scanf("%hu", &cmd->query.addr);
+			printf("Setting Data Length: ");
+			scanf("%hu", &cmd->query.len);
 			break;
-		case 2:
-			tmfpara->fc = READINPUTSTATUS;
+		case FORCESINGLECOIL:
+			printf("Setting Start addr (start from 0): ");
+			scanf("%hu", &cmd->swrite.addr);
+			cmd->swrite.data = ntohs(0);
 			break;
-		case 3:
-			tmfpara->fc = READHOLDINGREGS;
+		case PRESETSINGLEREG:
+			printf("Setting Start addr (start from 0): ");
+			scanf("%hu", &cmd->swrite.addr);
+			cmd->swrite.data = ntohs(0);
 			break;
-		case 4:
-			tmfpara->fc = READINPUTREGS;
+		case FORCEMULTICOILS:
+			printf("Setting Start addr (start from 0): ");
+			scanf("%hu", &cmd->mwrite.addr);
+			printf("Setting Data Length: ");
+			scanf("%hu", &cmd->mwrite.len);
+			bytecnt = carry(cmd->mwrite.len, 8);
+			cmd->mwrite.bcnt = bytecnt;
+			wdata = (uint8_t *)malloc(bytecnt);
+			assert(wdata);
+			memset(wdata, 0, bytecnt);
+			cmd->mwrite.data = wdata;
 			break;
-		case 5:
-			tmfpara->fc = FORCESIGLEREGS;
-			break;
-		case 6:
-			tmfpara->fc = PRESETEXCPSTATUS;
+		case PRESETMULTIREGS:
+			printf("Setting Start addr (start from 0): ");
+			scanf("%hu", &cmd->mwrite.addr);
+			printf("Setting Data Length: ");
+			scanf("%hu", &cmd->mwrite.len);
+			bytecnt = cmd->mwrite.len*sizeof(uint16_t);
+			cmd->mwrite.bcnt = bytecnt;
+			wdata = (uint8_t *)malloc(bytecnt);
+			assert(wdata);
+			memset(wdata, 0, bytecnt);
+			cmd->mwrite.data = wdata;
 			break;
 		default:
-			printf("Function code :\n");
-			printf("1        Read Coil Status\n");
-			printf("2        Read Input Status\n");
-			printf("3        Read Holding Registers\n");
-			printf("4        Read Input Registers\n");
-			printf("5        Force Single Coil\n");
-			printf("6        Preset Single Register\n");
-			return -1;
+			printf("unknown function code");
 	}
-	printf("Setting Start addr : ");
-	scanf("%hu", &straddr);
-	tmfpara->straddr = straddr - 1;
-	if(cmd == 5){
-		printf("Setting register write status (1 : on/0 : off) : ");
-		scanf("%d", &tmp);
-		if(tmp){
-			tmfpara->act = 0xff<<8;
-		}else if(!tmp){
-			tmfpara->act = 0;
-		}else{
-			printf("Setting register write status Fail (1 : on/0 : off)\n");
-			exit(0);
-		}
-	}else if(cmd == 6){
-		printf("Setting register action : ");
-		scanf("%hu", &tmfpara->act);
-	}else if(cmd == 3 || cmd == 4){
-		printf("Setting register shift length : ");
-		scanf("%d", &tmp);
-		if(tmp > 110 || tmp < 0){
-			printf("Please DO NOT exceed 110 ! ");
-			printf("Come on, dude. That's just a testing progam ...\n");
-			exit(0);
-		}else{
-			tmfpara->len = (unsigned short)tmp;
-		}
-	}else{
-		printf("Setting shift length : ");
-		scanf("%hu", &tmfpara->len);
-	}
-	
-	return 0;
+
+	printf("Setup delay between each command (seconds): ");
+	scanf("%u", &delay);
 }
 
-int _create_sk_cli(char *addr, char *port)
+static int create_sk_cli(const char *addr, const char *port)
 {
 	int skfd;
 	int ret;
@@ -107,16 +103,14 @@ int _create_sk_cli(char *addr, char *port)
 
 	ret = getaddrinfo(addr, port, &hints, &res);
 	if(ret != 0){
-		printf("<Modbus Tcp Master> getaddrinfo : %s\n", gai_strerror(ret));
-		exit(0);
+		mb_printf("getaddrinfo : %s\n", gai_strerror(ret));
+		return -1;
 	}
 
 	for(p = res; p != NULL; p = p->ai_next){
 		skfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-		if(skfd == -1){
+		if(skfd == -1)
 			continue;
-		}
-		printf("<Modbus Tcp Master> fd = %d\n", skfd);
 
 		ret = connect(skfd, p->ai_addr, p->ai_addrlen);
 		if(ret == -1){
@@ -126,9 +120,9 @@ int _create_sk_cli(char *addr, char *port)
 		break;
 	}
 
-	if(p == NULL){
-		printf("<Modbus Tcp Master> Fail to connect\n");
- 		exit(0);
+	if(!p){
+		mb_printf("Fail to connect\n");
+ 		return -1;
 	}
 
 	freeaddrinfo(res);
@@ -138,100 +132,114 @@ int _create_sk_cli(char *addr, char *port)
 
 int main(int argc, char **argv)
 {
-	int skfd;
-	int ret;
 	int retval;
-	int wlen;
-	int rlen;
-	int lock;
-	char *port;
-	char *addr;
-	unsigned char rx_buf[FRMLEN];
-	unsigned char tx_buf[FRMLEN];	
-	fd_set rfds;
-	fd_set wfds;
-	struct timeval tv;
-	struct tcp_frm_para tmfpara;
+	int skfd;
+	uint8_t rx_buf[1024];
+	uint8_t tx_buf[1024];
+	mbus_cmd_info cmd;
+	mbus_tcp_info tcp;
+	mbus_tcp_info rtcp;
+	mbus_resp_info resp;
 	
 	if(argc < 3){
-		printf("Usage : ./mbtcp_mstr <IP Address> <PORT>\n");
-		exit(0);
-	}	
-	addr = argv[1];
-	port = argv[2];
-	
-	skfd = _create_sk_cli(addr, port);
-	if(skfd < 0){
-		close(skfd);
-		printf("<Modbus Tcp Master> Fail to connect\n");
+		printf("%s [IP Address] [PORT]\n", argv[0]);
 		exit(0);
 	}
 
-	ret = _set_para(&tmfpara);
-	if(ret == -1){
-		printf("<Modbus TCP Master> Set parameter fail\n");
-		exit(0);
-	}
+	skfd = create_sk_cli(argv[1], argv[2]);
+	if(skfd < 0) return -1;
+
+	set_para(&cmd);
 	
-	lock = 0;
-	
-	do{	
-		FD_ZERO(&rfds);
-		FD_ZERO(&wfds);
-		if(lock){
-			FD_SET(skfd, &rfds);
+	tcp.transID = 0;
+	tcp.protoID = TCPMBUSPROTOCOL;
+
+	fd_set rfds;
+	struct timeval tv;
+	int wlen, rlen;
+	do{
+		tcp.transID++;	
+
+		wlen = tcp_build_cmd(tx_buf, 1024, &cmd, &tcp);
+		retval = send(skfd, tx_buf, wlen, 0);
+		if(retval <= 0){
+			mb_printf("Send failed!\n");
+			break;
 		}
-		FD_SET(skfd, &wfds);
-		
-		tv.tv_sec = 5;
+
+		FD_ZERO(&rfds);
+		FD_SET(skfd, &rfds);
+		tv.tv_sec = 2;
 		tv.tv_usec = 0;
 		
-		retval = select(skfd + 1, &rfds, &wfds, 0, &tv);
-		if(retval <= 0){
-			printf("<Modbus Tcp Master> select nothing ...\n");
-			sleep(3);
+		retval = select(skfd+1, &rfds, NULL, NULL, &tv);
+		if(retval < 0){
+			mb_printf("Select nothing!\n");
+			break;
+		}
+		
+		if(retval == 0){
+			mb_printf("Select nothing\n");
+			sleep(1);
 			continue;
 		}
 	
-		if(FD_ISSET(skfd, &wfds) && !lock){	
-			tcp_func.build_qry((struct tcp_frm *)tx_buf, &tmfpara);
-            wlen = send(skfd, &tx_buf, TCPSENDQUERYLEN, MSG_NOSIGNAL);
-			if(wlen != TCPSENDQUERYLEN){
-				printf("<Modbus TCP Master> send incomplete !!\n");
-				print_data(tx_buf, wlen, SENDINCOMPLT);
+		rlen = recv(skfd, rx_buf, sizeof(rx_buf), 0);
+		if(rlen <= 0){
+			mb_printf("Recv failed!\n");
+			break;
+		}
+
+		tcp_get_respinfos(rx_buf, rlen, &resp, &rtcp);
+
+		mb_printf("rtid = %hu, mbus.fc = %hhu\n", rtcp.transID, resp.info.fc);
+
+		if(resp.info.fc & EXCPTIONCODE){
+			switch(resp.excp.ec){
+				case EXCPILLGFUNC:
+					mb_printf("exception : illegal function\n");
+					break;
+				case EXCPILLGDATAADDR:
+					mb_printf("exception : illegal data address\n");
+					break;
+				case EXCPILLGDATAVAL:
+					mb_printf("exception : illegal data value\n");
+					break;
+				default:
+					printf("exception code: %hhx\n", resp.excp.ec);
+			}
+			return 0;
+		}
+
+		switch(resp.info.fc){
+			case READCOILSTATUS:
+			case READINPUTSTATUS:
+			case READHOLDINGREGS:
+			case READINPUTREGS:
+				for(int i = 0; i < resp.query.bcnt; i++){
+					printf("[%d] %hhx \n", i, resp.query.data[i]);
+				}
 				break;
-			}
-			debug_print_data(tx_buf, wlen, SENDQRY);
-			tmfpara.transID++; 
-			lock = 1;
+			case PRESETSINGLEREG:
+				cmd.swrite.data++;
+				break;
+			case FORCESINGLECOIL:
+				cmd.swrite.data = (uint16_t)cmd.swrite.data ? 0x0000 : 0xff00;
+				break;
+			case PRESETMULTIREGS:
+			case FORCEMULTICOILS:
+				memset(wdata, ++(wdata[0]), bytecnt);
+				break;
+			default:
+				printf("unknown command\n");
+				return 0;
 		}
-
-		if(FD_ISSET(skfd, &rfds) && lock){
-			rlen = recv(skfd, rx_buf, FRMLEN, 0);
-			if(rlen < 1){
-				printf("<Modbus TCP Master> fuckin recv empty !!\n");
-				continue;
-			}
-
-			ret = tcp_func.chk_dest((struct tcp_frm *)rx_buf, &tmfpara);
-			if(ret == -1){
-				memset(rx_buf, 0, FRMLEN);
-				continue;
-			}
-			ret = tcp_func.resp_parser(rx_buf, &tmfpara, rlen);
-			if(ret == -1){
-				print_data(rx_buf, TCPRESPEXCPFRMLEN, RECVEXCP);
-				lock = 0;
-				continue;
-			}
-			debug_print_data(rx_buf, rlen, RECVRESP);
-			poll_slvID(tmfpara.unitID);
-			lock = 0;
-		}
-		sleep(1);
+		sleep(delay);
 	}while(1);
 	
-	close(skfd);
+	if(skfd > 0)
+		close(skfd);
 	
 	return 0;
 }	
+#undef mb_printf

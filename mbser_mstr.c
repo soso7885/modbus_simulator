@@ -8,100 +8,98 @@
 #include <fcntl.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <endian.h>
 #include <asm-generic/termbits.h>
 
 #include "mbus.h"
 
-extern struct mbus_serial_func ser_func;
+#define mb_printf(str, args...) printf("<Modbus RTU Master> "str, ##args)
 
-int _set_para(struct frm_para *mfpara)
+uint8_t *wdata = 0;
+int bytecnt = 0;
+unsigned int delay = 0;
+
+static void set_para(mbus_cmd_info *cmd)
 {
-	int cmd;
-	int tmp;
-	unsigned int straddr;
-	
-	printf("RTU Master mode !\nEnter slave ID : ");
-	scanf("%d", &mfpara->slvID);
-	printf("Enter function code : ");
-	scanf("%d", &cmd);
-	switch(cmd){
-		case 1:
-			mfpara->fc = READCOILSTATUS;
+	mb_printf("Enter Slave ID : ");
+	scanf("%hhu", &cmd->info.unitID);
+	printf("Function code :\n");
+	printf("%hhu\t\tRead Coil Status\n", READCOILSTATUS);
+	printf("%hhu\t\tRead Input Status\n", READINPUTSTATUS);
+	printf("%hhu\t\tRead Holding Registers\n", READHOLDINGREGS);
+	printf("%hhu\t\tRead Input Registers\n", READINPUTREGS);
+	printf("%hhu\t\tForce Single Coil\n", FORCESINGLECOIL);
+	printf("%hhu\t\tPreset Single Register\n", PRESETSINGLEREG);
+	printf("%hhu\t\tForce multi Coil\n", FORCEMULTICOILS);
+	printf("%hhu\t\tPreset multi Register\n", PRESETMULTIREGS);
+	printf("Enter Function code : ");
+	scanf("%hhu", &cmd->info.fc);
+	switch(cmd->info.fc){
+		case READCOILSTATUS:
+		case READINPUTSTATUS:
+		case READHOLDINGREGS:
+		case READINPUTREGS:
+			printf("Setting Start addr (start from 0): ");
+			scanf("%hu", &cmd->query.addr);
+			printf("Setting Data Length: ");
+			scanf("%hu", &cmd->query.len);
 			break;
-		case 2:
-			mfpara->fc = READINPUTSTATUS;
+		case FORCESINGLECOIL:
+			printf("Setting Start addr (start from 0): ");
+			scanf("%hu", &cmd->swrite.addr);
+			cmd->swrite.data = htobe16(0);
 			break;
-		case 3:
-			mfpara->fc = READHOLDINGREGS;
+		case PRESETSINGLEREG:
+			printf("Setting Start addr (start from 0): ");
+			scanf("%hu", &cmd->swrite.addr);
+			cmd->swrite.data = htobe16(0);
 			break;
-		case 4:
-			mfpara->fc = READINPUTREGS;
+		case FORCEMULTICOILS:
+			printf("Setting Start addr (start from 0): ");
+			scanf("%hu", &cmd->mwrite.addr);
+			printf("Setting Data Length: ");
+			scanf("%hu", &cmd->mwrite.len);
+			bytecnt = carry(cmd->mwrite.len, 8);
+			cmd->mwrite.bcnt = bytecnt;
+			wdata = (uint8_t *)malloc(bytecnt);
+			assert(wdata);
+			memset(wdata, 0, bytecnt);
+			cmd->mwrite.data = wdata;
 			break;
-		case 5:
-			mfpara->fc = FORCESIGLEREGS;
-			break;
-		case 6:
-			mfpara->fc = PRESETEXCPSTATUS;
+		case PRESETMULTIREGS:
+			printf("Setting Start addr (start from 0): ");
+			scanf("%hu", &cmd->mwrite.addr);
+			printf("Setting Data Length: ");
+			scanf("%hu", &cmd->mwrite.len);
+			bytecnt = cmd->mwrite.len * sizeof(short);
+			cmd->mwrite.bcnt = bytecnt;
+			wdata = (uint8_t *)malloc(bytecnt);
+			assert(wdata);
+			memset(wdata, 0, bytecnt);
+			cmd->mwrite.data = wdata;
 			break;
 		default:
-			printf("Function code :\n");
-			printf("1		Read Coil Status\n");
-			printf("2		Read Input Status\n");
-			printf("3		Read Holding Registers\n");
-			printf("4		Read Input Registers\n");
-			printf("5		Force Single Coil\n");
-			printf("6		Preset Single Register\n");
-			return -1;
-	}
-	printf("Enter start address : ");
-	scanf("%d", &straddr);
-	mfpara->straddr = straddr - 1;
-	if(cmd == 5){
-		printf("Setting register write status (on/off) : ");
-		scanf("%d", &tmp);
-		if(tmp){
-			mfpara->act = 0xff<<8;
-		}else if(!tmp){
-			mfpara->act = 0;
-		}else{
-			printf("Setting register write status FAIL !! (1 ; on / 0 : off)\n");
+			printf("unknown function code");
 			exit(0);
-		}
-	}else if(cmd == 6){
-		printf("Setting register action : ");
-		scanf("%d", &mfpara->act);
-	}else if(cmd == 3 || cmd == 4){
-		printf("Setting shift len : ");
-		scanf("%d", &tmp);
-		if(tmp > 110 || tmp < 0){
-			printf("Please DO NOT exceed 110 ! ");
-			printf("Come on, dude. That's just a testing progam.");
-			exit(0);
-		}
-		mfpara->len = (unsigned int)tmp;
-	}else{
-		printf("Setting contain/shift len : ");
-		scanf("%d", &mfpara->len);
 	}
-	
-	return 0;
+
+	printf("Setup delay between each command (seconds): ");
+	scanf("%u", &delay);
 }
 
-int _set_termois(int fd, struct termios2 *newtio)
+static void set_termois(int fd)
 {
 	int ret;
+	struct termios2 tio;
 
-	ret = ioctl(fd, TCGETS2, newtio);
-	if(ret < 0){
-		printf("<Modbus Serial Master> ioctl : %s\n", strerror(errno));
-		return -1;
-	}
-	printf("<Modbus Serial Master> BEFORE setting : ospeed %d ispeed %d\n", newtio->c_ospeed, newtio->c_ispeed);
-	newtio->c_iflag &= ~(ISTRIP|IUCLC|IGNCR|ICRNL|INLCR|ICANON|IXON|IXOFF|PARMRK);
-	newtio->c_iflag |= (IGNBRK|IGNPAR);
-	newtio->c_lflag &= ~(ECHO|ICANON|ISIG);
-	newtio->c_cflag &= ~CBAUD;
-	newtio->c_cflag |= BOTHER;
+	ret = ioctl(fd, TCGETS2, &tio);
+	assert(ret > 0);
+	
+	tio.c_iflag &= ~(ISTRIP|IUCLC|IGNCR|ICRNL|INLCR|ICANON|IXON|IXOFF|PARMRK);
+	tio.c_iflag |= (IGNBRK|IGNPAR);
+	tio.c_lflag &= ~(ECHO|ICANON|ISIG);
+	tio.c_cflag &= ~CBAUD;
+	tio.c_cflag |= BOTHER;
 	/*
 	 * Close termios 'OPOST' flag, thus when write serial data
 	 * which first byte is '0a', it will not add '0d' automatically !! 
@@ -109,17 +107,13 @@ int _set_termois(int fd, struct termios2 *newtio)
 	 * On usual, \n\r is linked, if you only send 0a(\n), 
 	 * Kernel will think you forget \r(0d), so add \r(0d) automatically.
 	*/
-	newtio->c_oflag &= ~(OPOST);
-	newtio->c_ospeed = 9600;
-	newtio->c_ispeed = 9600;
-	ret = ioctl(fd, TCSETS2, newtio);
-	if(ret < 0){
-		printf("<Modbus Serial Master> ioctl : %s\n", strerror(errno));
-		return -1;
-	}
-	printf("<Modbus Serial Master> AFTER setting : ospeed %d ispeed %d\n", newtio->c_ospeed, newtio->c_ispeed);
+	tio.c_oflag &= ~(OPOST);
+	tio.c_ospeed = BAUDRATE;
+	tio.c_ispeed = BAUDRATE;
+	ret = ioctl(fd, TCSETS2, &tio);
+	assert(ret > 0);
 	
-	return 0;
+	mb_printf("Setting termios: ospeed %d ispeed %d\n", tio.c_ospeed, tio.c_ispeed);
 }
 
 int main(int argc, char **argv)
@@ -127,116 +121,113 @@ int main(int argc, char **argv)
 	int fd;
 	int retval;
 	int ret;
-	int wlen;
-	int rlen;
-	int txlen;
-	char *path;
-	fd_set wfds;
-	fd_set rfds;
-	struct termios2 newtio;
-	struct timeval tv;
-	unsigned char tx_buf[FRMLEN];
-	unsigned char rx_buf[FRMLEN];
-	int lsr;
-	struct frm_para mfpara;
+	uint8_t tx_buf[1024];
+	uint8_t rx_buf[1024];
+	mbus_cmd_info cmd;
+	mbus_resp_info resp;
 
 	if(argc < 2){
-		printf("./mbus_mstr [PATH]\n");
-		printf("default : /dev/ttyUSB0\n");
+		printf("%s [PATH]\n", argv[0]);
 		exit(0);
 	}
 	
-	path = argv[1];
+	set_para(&cmd);
 
-	if(_set_para(&mfpara) == -1){
-		printf("<Modbus Serial Master> Set parameters fail\n");
-		exit(0);
-	}	
-	fd = open(path, O_RDWR);
-	if(fd == -1){
-		printf("<Modbus Serial Master> open : %s\n", strerror(errno));
+	fd = open(argv[1], O_RDWR);
+	if(fd < 0){
+		mb_printf("Open : %s\n", strerror(errno));
 		return -1;
 	}
-	printf("<Modbus Serial Master> Com port fd = %d\n", fd);
 
-	if(_set_termois(fd, &newtio) == -1){
-		printf("<Modbus Serial Master> Set termios fail\n");
-		return -1;
-	} 
+	set_termois(fd);
 
-	txlen = ser_func.build_qry(tx_buf, &mfpara);
-	print_data(tx_buf, txlen, SENDQRY);
-	wlen = 0;
-
+	int txlen;
+	int rlen;
+	fd_set rfds;
+	struct timeval tv;
 	do{
-		FD_ZERO(&wfds);
+		txlen = rtu_build_cmd(tx_buf, 1024, &cmd);
+		write(fd, tx_buf, txlen);
+		
 		FD_ZERO(&rfds);
-		FD_SET(fd, &wfds);
-		if(wlen != 0){
-			FD_SET(fd, &rfds);		
-		}
+		FD_SET(fd, &rfds);		
+
 		tv.tv_sec = 2;
 		tv.tv_usec = 0;
+		rlen = 0;
 
-		retval = select(fd+1, &rfds, &wfds, 0, &tv);
-		if(retval <= 0){
-			wlen = 0;
-			printf("<Modbus Serial Master> Select nothing\n");
-			sleep(3);
+		do{
+			retval = select(fd+1, &rfds, 0, 0, &tv);
+			if(retval <= 0){
+				mb_printf("Select nothing\n");
+				break;
+			}
+
+			rlen += read(fd, &rx_buf[rlen], sizeof(rx_buf) - rlen);
+
+			ret = rtu_get_respinfo(rx_buf, rlen, &resp);
+			if(ret > 0) break;
+			if(ret == MBUS_ERROR_DATALEN) continue;
+			
+			tcflush(fd, TCIOFLUSH);
+
+			break;
+		}while(1);
+
+		if(rtu_get_respinfo(rx_buf, rlen, &resp) <= 0){
+			mb_printf("Failed to get resp info\n");
 			continue;
 		}
 
-		if(FD_ISSET(fd, &rfds) && lsr && wlen != 0){
-			rlen = read(fd, rx_buf, FRMLEN);			
-			ret = ser_func.chk_dest(rx_buf, &mfpara);
-			if(ret == -1){
-				memset(rx_buf, 0, FRMLEN);
-				continue;
+		mb_printf("resp FC = %d\n", resp.info.fc);
+
+		if(resp.info.fc & EXCPTIONCODE){
+			switch(resp.excp.ec){
+				case EXCPILLGFUNC:
+					mb_printf("exception: illegal function\n");
+					break;
+				case EXCPILLGDATAADDR:
+					mb_printf("exception: illegal data address\n");
+					break;
+				case EXCPILLGDATAVAL:
+					mb_printf("exception: illegal data value\n");
+					break;
+				default:
+					mb_printf("exception code: %hhx\n", resp.excp.ec);
 			}
-			wlen = 0;
-			ret = ser_func.resp_parser(rx_buf, &mfpara, rlen);
-			if(ret == -1){
-				print_data(rx_buf, rlen, RECVEXCP);
-				continue;
-			}
-			debug_print_data(rx_buf, rlen, RECVRESP);
-			poll_slvID(mfpara.slvID);
+			return 0;
 		}
-		/* Send Query */
-		if(FD_ISSET(fd, &wfds) && !wlen){
-			wlen = write(fd, tx_buf, txlen);
-			ret = ioctl(fd, TIOCSERGETLSR, &lsr);
-			if(ret == -1){ 
-				printf("<Modbus Serial Master> TIOCSERGETLSR : %s\n", strerror(errno));	
-				lsr = 1;
-			}else{
-				while(lsr == 0){
-					ret = ioctl(fd, TIOCSERGETLSR, &lsr);
+
+		switch(resp.info.fc){
+			case READCOILSTATUS:
+			case READINPUTSTATUS:
+			case READHOLDINGREGS:
+			case READINPUTREGS:
+				for(int i = 0; i < resp.query.bcnt; i++){
+					printf("[%d] %hhx \n", i, resp.query.data[i]);
 				}
-			}
-			if(wlen != txlen){
-				printf("<Modbus Serial Master> write query incomplete !!\n");
-				print_data(tx_buf, wlen, SENDINCOMPLT);
-				continue;
-			}
-		}
-		sleep(1);
+				break;
+			case PRESETSINGLEREG:
+				cmd.swrite.data++;
+				break;
+			case FORCESINGLECOIL:
+				cmd.swrite.data = (unsigned short)cmd.swrite.data ? 0x0000:0xff00;
+				break;
+			case PRESETMULTIREGS:
+			case FORCEMULTICOILS:
+				memset(wdata, ++(wdata[0]), bytecnt);
+				break;
+			default:
+				mb_printf("ERROR: unknown command\n");
+				return 0;
+		};
+
+		sleep(delay);
 	}while(1);
-	
-	if(fd == -1){
+
+	if(fd > 0)
 		close(fd);
-	}
-	
+
 	return 0;
 }
-	
-	
-
-	
-	
-	
-
-	
-	
-	
-
+#undef mb_printf

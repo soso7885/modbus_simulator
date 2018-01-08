@@ -1,5 +1,7 @@
 #ifndef MBUS_H
 #define MBUS_H
+#include <stdint.h>
+#include <assert.h>
 
 #define INITTCPTRANSID			1<<8
 #define EXCPMSGTOTAL			6
@@ -12,18 +14,19 @@
 #define TCPSENDQUERYLEN			12
 #define SERRECVQRYLEN 			8
 
-#define READCOILSTATUS 			0x01
-#define READINPUTSTATUS 		0x02
-#define READHOLDINGREGS 		0x03
-#define READINPUTREGS 			0x04
-#define FORCESIGLEREGS 			0x05
-#define PRESETEXCPSTATUS 		0x06
-#define FORCEMUILTCOILS			0x15
-#define PRESETMUILTREGS			0x16
+#define READCOILSTATUS 			1
+#define READINPUTSTATUS 		2
+#define READHOLDINGREGS 		3
+#define READINPUTREGS 			4
+#define FORCESINGLECOIL 		5
+#define PRESETSINGLEREG 		6
+#define FORCEMULTICOILS			15
+#define PRESETMULTIREGS			16
+
 #define EXCPTIONCODE			0x80
-#define EXCPILLGFUNC			0x01
-#define EXCPILLGDATAADDR		0x02
-#define EXCPILLGDATAVAL			0x03
+#define EXCPILLGFUNC			1
+#define EXCPILLGDATAADDR		2
+#define EXCPILLGDATAVAL			3
 #define READCOILSTATUS_EXCP		129
 #define READINPUTSTATUS_EXCP	130
 #define READHOLDINGREGS_EXCP	131
@@ -31,17 +34,12 @@
 #define FORCESIGLEREGS_EXCP		133
 #define PRESETEXCPSTATUS_EXCP	134
 
-#define RECVRESP		0
-#define RECVQRY			1
-#define RECVEXCP		2
-#define RECVINCOMPLT	3
-#define SENDRESP		4
-#define SENDQRY			5
-#define SENDEXCP		6
-#define SENDINCOMPLT	7
+#define MBUS_ERROR_DATALEN	(-1)
+#define MBUS_ERROR_FORMATE	(-2)
 
 //#define DEBUGMSG
 //#define POLL_SLVID
+#define BAUDRATE 9600
 
 #define FRMLEN 260  /* | 1byte | 1byte | 0~255byte | 2byte | */
 
@@ -71,16 +69,14 @@ static inline int carry(int bdiv, int div)
 	
 	ans = bdiv / div;
 	tmp = bdiv % div;
-	if(tmp > 0){
+	if(tmp > 0)
 		ans += 1;
-	}
 
 	return ans;
 }
 
-static inline int print_data(unsigned char *buf, int len, int status)
+static inline void print_data(uint8_t *buf, int len, int status)
 {
-	int i;
 	char *s[8] = {"Recv Respond :", 
 				 "Recv Query :",
 				 "Recv Excption :",
@@ -92,125 +88,135 @@ static inline int print_data(unsigned char *buf, int len, int status)
 				};
 	
 	printf("%s\n", s[status]);
-	for(i = 0; i < len; i++){
+	for(int i = 0; i < len; i++)
 		printf(" %x |", buf[i]);
-	}
 	printf("## len = %d ##\n", len);
-	
-	return 0;
 }
 
-/* modbus SERIAL frame */
-struct frm_para {
-	unsigned int slvID;
-	unsigned int len;
-	unsigned char fc;
-	unsigned int straddr;
-	unsigned int act;			// The status to write (in FC 0x05/0x06) 
-};
-
-/* mutithread parameter */
-struct thread_pack {
-	struct tcp_frm_para *tsfpara;
-	struct tcp_tmp_frm *tmpara;
-	int rskfd;
-	pthread_mutex_t mutex;
-};
-
-/* This is for modbus tcp use to set respond straddr & act in temporary */
-struct tcp_tmp_frm {
-	unsigned short straddr;
-	unsigned short act;
-	unsigned short len;
-};
-
-/* save modbus TCP parameter */
-struct tcp_frm_para {
-	unsigned short transID;
-	unsigned short potoID;
-	unsigned short msglen;
-	unsigned char unitID;
-	unsigned char fc;
-	unsigned short straddr;
-	unsigned short act;
-	unsigned short len;
-};
-
-/* modbus TCP Query & fc = 05/06 frame */
-struct tcp_frm{
-	unsigned short transID;
-	unsigned short potoID;
-	unsigned short msglen;
-	unsigned char unitID;
-	unsigned char fc;
-	unsigned short straddr;
-	unsigned short act;
+struct _mbus_gen_hdr{
+	uint8_t unitID;
+	uint8_t fc;
 }__attribute__((packed));
 
-/* modbus TCP respond excption frame */
-struct tcp_frm_excp {
-	unsigned short transID;
-	unsigned short potoID;
-	unsigned short msglen;
-	unsigned char unitID;
-	unsigned char fc;
-	unsigned char ec;
+struct _mbus_multi{
+	struct _mbus_gen_hdr info;
+	uint16_t addr;
+	uint16_t len;
+	uint8_t bcnt;
+	uint8_t data[1];
 }__attribute__((packed));
+
+struct _mbus_r_multi{
+	struct _mbus_gen_hdr info;
+	uint8_t bcnt;
+	uint8_t data[1];
+}__attribute__((packed));
+
+struct _mbus_single{
+	struct _mbus_gen_hdr info;
+	uint16_t addr;
+	uint16_t data;
+}__attribute__((packed));
+
+struct _mbus_query{
+	struct _mbus_gen_hdr info;
+	uint16_t addr;
+	uint16_t len;
+}__attribute__((packed));
+
+struct _mbus_excp{
+	struct _mbus_gen_hdr info;
+	uint8_t ec;
+}__attribute__((packed));
+
+union _mbus_hdr{
+	struct _mbus_gen_hdr info;
+
+	/*common data types*/
+	struct _mbus_multi mwrite;
+	struct _mbus_query query;
 	
-/* modbus TCP respond fc = 01/02/03/04 frame */
-struct tcp_frm_rsp {
-	unsigned short transID;
-	unsigned short potoID;
-	unsigned short msglen;
-	unsigned char unitID;
-	unsigned char fc;
-	unsigned char byte;
+	/*used for build_cmd/req and get_cmd/reqinfo*/
+	struct _mbus_single force_scoil;
+	struct _mbus_single preset_sreg;
+	struct _mbus_single swrite;
+
+	/*used for build_resp and get_respinfo*/
+	struct _mbus_r_multi r_readregs;
+	struct _mbus_r_multi r_readcoils;
+	struct _mbus_r_multi r_query;
+	struct _mbus_query r_mwrite;
+
+	struct _mbus_excp excp;
 }__attribute__((packed));
 
-struct mbus_serial_func{
-	int (*chk_dest)(unsigned char*, struct frm_para*);
-	int (*qry_parser)(unsigned char*, struct frm_para*);
-	int (*resp_parser)(unsigned char*, struct frm_para*, int);
-	int (*build_qry)(unsigned char*, struct frm_para*);
-	int (*build_excp)(unsigned char*, struct frm_para*, unsigned char);
-	int (*build_0102_resp)(unsigned char*, struct frm_para*, unsigned char);
-	int (*build_0304_resp)(unsigned char*, struct frm_para*, unsigned char);
-	int (*build_0506_resp)(unsigned char*, struct frm_para*, unsigned char);
+struct _tcp_hdr{
+	uint16_t transID;
+	uint16_t protoID;
+	uint16_t msglen;
+}__attribute__((packed));
+
+struct mbus_tcp_frm{
+	struct _tcp_hdr tcp;
+	union _mbus_hdr mbus;
+}__attribute__((packed));
+
+#define __mbus_len(PTR, TYPENAME, BYTECNT)				(sizeof((PTR)->TYPENAME)+BYTECNT-(BYTECNT>0 ? sizeof(uint8_t) : 0))
+#define __mbus_tcp_framelen(PTR, TYPENAME, BYTECNT)		(sizeof((PTR)->tcp) + __mbus_len(&((PTR)->mbus), TYPENAME, BYTECNT))
+#define __mbus_tcp_hdrlen								(sizeof(struct _tcp_hdr))
+#define __mbus_rtu_crc16(PTR, LEN)						((uint16_t *)(((uint8_t *)PTR) + LEN))
+
+struct _mbus_multi_cmdinfo{
+	struct _mbus_gen_hdr info;
+	uint16_t addr;
+	uint16_t len;
+	uint8_t bcnt;
+	uint8_t *data;
+}__attribute__((packed));
+
+typedef union {
+	struct _mbus_gen_hdr info;
+	struct _mbus_single swrite;
+	struct _mbus_query query;
+	struct _mbus_multi_cmdinfo mwrite;
+} mbus_cmd_info;
+
+struct _mbus_multi_respinfo{
+	struct _mbus_gen_hdr info;
+	uint8_t bcnt;
+	uint8_t *data;
 };
-	
-struct mbus_tcp_func{
-	int (*chk_dest)(struct tcp_frm*, struct tcp_frm_para*);
-	int (*qry_parser)(struct tcp_frm*, struct thread_pack*);
-	int (*resp_parser)(unsigned char*, struct tcp_frm_para*, int);
-	int (*build_qry)(struct tcp_frm*, struct tcp_frm_para*);
-	int (*build_excp)(struct tcp_frm_excp*, struct tcp_frm_para*, unsigned char);
-	int (*build_0102_resp)(struct tcp_frm_rsp*, struct thread_pack*, unsigned char);
-	int (*build_0304_resp)(struct tcp_frm_rsp*, struct thread_pack*, unsigned char);
-	int (*build_0506_resp)(struct tcp_frm*, struct thread_pack*, unsigned char);
-};
-		
-void build_rtu_frm(unsigned char *dst_buf, unsigned char *src_buf, unsigned char lenth);
 
-int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara);
-int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen);
-int ser_chk_dest(unsigned char *rx_buf, struct frm_para *fpara);
+typedef union{
+	struct _mbus_gen_hdr info;
+	struct _mbus_single swrite;
+	struct _mbus_query mwrite;
+	struct _mbus_multi_respinfo query;
+	struct _mbus_excp excp;
+} mbus_resp_info;
 
-int ser_build_query(unsigned char *tx_buf, struct frm_para *mfpara);
-int ser_build_resp_excp(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char excp_code);
-int ser_build_resp_read_status(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char fc);
-int ser_build_resp_read_regs(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char fc);
-int ser_build_resp_set_single(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char fc);
+typedef struct _tcp_hdr mbus_tcp_info;
 
-int tcp_query_parser(struct tcp_frm *rx_buf, struct thread_pack *tpack);
-int tcp_resp_parser(unsigned char *rx_buf, struct tcp_frm_para *tmfpara, int rlen);
-int tcp_chk_pack_dest(struct tcp_frm *rx_buf, struct tcp_frm_para *tsfpara);
+int tcp_get_cmdinfos(const void *buf, int buflen, mbus_cmd_info *mbus_result, mbus_tcp_info *tcp_result);
+int tcp_get_respinfos(const void *buf, int buflen, mbus_resp_info *mbus_result, mbus_tcp_info *tcp_result);
+int tcp_build_cmd(void *buf, int buflen, const mbus_cmd_info *mbusinfo, const mbus_tcp_info *tcpinfo);
+int tcp_build_excp(void *buf, int buflen, const mbus_cmd_info *mbusinfo, const mbus_tcp_info *tcpinfo, uint8_t excp_code);
+int tcp_build_resp(void *buf, int buflen, const mbus_resp_info *mbusinfo, const mbus_tcp_info *tcpinfo);
 
-int tcp_build_query(struct tcp_frm *tx_buf, struct tcp_frm_para *tmfpara);
-int tcp_build_resp_excp(struct tcp_frm_excp *tx_buf, struct tcp_frm_para *tsfpara, unsigned char excp_code);
-int tcp_build_resp_read_status(struct tcp_frm_rsp *tx_buf, struct thread_pack *tpack, unsigned char fc);
-int tcp_build_resp_read_regs(struct tcp_frm_rsp *tx_buf, struct thread_pack *tpack, unsigned char fc);
-int tcp_build_resp_set_single(struct tcp_frm *tx_buf, struct thread_pack *tpack, unsigned char fc);
+int mbus_cmd_resp(const mbus_cmd_info *cmd, mbus_resp_info *resp, const void *data);
+int mbus_build_cmd(union _mbus_hdr *mbus, int buf_len, const mbus_cmd_info *cmd_info);
+int mbus_build_resp(union _mbus_hdr *mbus, int buflen, const mbus_resp_info *mbusinfo);
+int mbus_build_excp(union _mbus_hdr *mbus, int buflen, const mbus_cmd_info *mbusinfo, uint8_t excp_code);
+int mbus_get_cmdinfo(const union _mbus_hdr *mbus_frame, int len, mbus_cmd_info *mbus_result);
+int mbus_get_respinfo(const union _mbus_hdr *mbus_frame, int len, mbus_resp_info *mbus_result);
 
+uint16_t crc_checksum(const void *buff, int len);
+
+int rtu_build_excp(void *buf, int buflen, const mbus_cmd_info *mbusinfo, uint8_t excp_code);
+int rtu_build_resp(void *buf, int buflen, const mbus_resp_info *mbusinfo);
+int rtu_build_cmd(void *buf, int buflen, const mbus_cmd_info *mbusinfo);
+int rtu_get_respinfo(void *buf, int buflen, mbus_resp_info *mbusinfo);
+int rtu_get_cmdinfo(void * buf, int buflen, mbus_cmd_info * mbusinfo);
 #endif
 
 

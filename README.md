@@ -1,19 +1,17 @@
-# Modbus Simulator
-This is Modbus Simulator in Linux which support modbus RTU serial & modbus TCP !
-
+# modbus
 modbus RTU serial & modbus TCP
 Support function code 0x01 ~ 0x06
 
-modbus RTU :
+modbus RTU ->
+Master mode : ./mbser_mstr <port>
+Slave mode : ./mbser_slv <port>
 
-Master mode : mbser_mstr
+modbus TCP ->
+Master mode : ./mbtcp_mstr <IP address> <port number>
+Slave mode : ./mbtcp_slv <port number>
 
-Slave mode : mbser_slv
-
-modbus TCP :
-
-Master mode : mbtcp_mstr
-
-Slave mode : mbtcp_slv
+note->
+Open slave ID polling(1~32), remove comment #define POLL_SLVID in mbus.h
+Open debug print data, remove comment #define DEBUGMSG in mubus.h
 
 
