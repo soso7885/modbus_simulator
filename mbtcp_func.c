@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>
-#include <endian.h>
 #include <pthread.h>
 
 #include "mbus.h"

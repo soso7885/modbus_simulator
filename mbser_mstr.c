@@ -8,7 +8,6 @@
 #include <fcntl.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include <endian.h>
 #include <asm-generic/termbits.h>
 
 #include "mbus.h"

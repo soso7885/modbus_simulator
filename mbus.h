@@ -2,6 +2,11 @@
 #define MBUS_H
 #include <stdint.h>
 #include <assert.h>
+#ifdef __APPLE__
+	#include <machine/endian.h>
+#else
+	#include <endian.h>
+#endif
 
 #define INITTCPTRANSID			1<<8
 #define EXCPMSGTOTAL			6
