@@ -2,351 +2,117 @@
 #include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <endian.h>
 
 #include "mbus.h"
 
-struct mbus_serial_func ser_func = {
-	.chk_dest = ser_chk_dest,
-	.qry_parser = ser_query_parser,
-	.resp_parser = ser_resp_parser,
-	.build_qry = ser_build_query,
-	.build_excp = ser_build_resp_excp,
-	.build_0102_resp = ser_build_resp_read_status,
-	.build_0304_resp = ser_build_resp_read_regs,
-	.build_0506_resp = ser_build_resp_set_single,
-};
-
-int ser_query_parser(unsigned char *rx_buf, struct frm_para *sfpara)
+int rtu_build_resp(void *buf, int buflen, const mbus_resp_info *mbusinfo)
 {
-	unsigned char qfc;
-	unsigned char rfc;
-	unsigned int qstraddr;
-	unsigned int rstraddr;
-	unsigned int qact;
-	unsigned int rlen;
-	
-	qfc = *(rx_buf+1);
-	qstraddr = *(rx_buf+2)<<8 | *(rx_buf+3);
-	qact = *(rx_buf+4)<<8 | *(rx_buf+5);
-	rfc = sfpara->fc;
-	rstraddr = sfpara->straddr;
-	rlen = sfpara->len;
+	uint32_t txlen;
+	uint32_t msglen;
+	uint16_t *rtu_crc16;
+	union _mbus_hdr *mbus = (union _mbus_hdr *)buf;
 
-	if(rfc != qfc){
-		printf("<Modbus Serial Slave> Function code improper");
-		printf(" Respond fc = %x | Query fc = %x\n", rfc, qfc);
-		return -2;
-	}
+	if(buflen < __mbus_len(mbus, info, 0) + sizeof(uint16_t))
+		return MBUS_ERROR_DATALEN;
+
+	msglen = mbus_build_resp(mbus, buflen - sizeof(uint16_t), mbusinfo);
+	txlen = msglen + sizeof(uint16_t);
+
+	rtu_crc16 = __mbus_rtu_crc16(buf, msglen);
+
+	if(txlen > buflen)
+		return MBUS_ERROR_DATALEN;
+
+	*rtu_crc16 = htobe16(crc_checksum(buf, msglen));
 	
-	if(!(rfc ^ FORCESIGLEREGS)){				// FC = 0x05, get the status to write(on/off)
-		if(!qact || qact == 0xff<<8){
-			sfpara->act = qact;
-		}else{
-			printf("<Modbus Serial Slave> Query set write status FUCKIN WRONG (fc = 0x05)\n");
-			return -3;							
-		}
-		if(qstraddr != rstraddr){
-			printf("<Modbus Serial Slave> Query register address wrong (fc = 0x05)");
-			printf(", query addr : %x | resp addr : %x\n", qstraddr, rstraddr);
-			return -2;
-		} 
-	}else if(!(rfc ^ PRESETEXCPSTATUS)){		// FC = 0x06, get the value to write
-		if(qstraddr != rstraddr){
-			printf("<Modbus Serial Slave> Query register address wrong (fc = 0x06)");
-			printf(", query addr : %x | resp addr : %x\n", qstraddr, rstraddr);
-			return -2;
-		}
-		sfpara->act = qact;
-	}else{
-		// Query addr+shift len must smaller than the contain we set in addr+shift len
-		if((qstraddr + qact <= rstraddr + rlen) && (qstraddr >= rstraddr)){	
-			sfpara->straddr = qstraddr;
-			sfpara->len = qact;
-		}else{
-			printf("<Modbus Serial Slave> The address have no contain\n");
-			return -4;
-		}
-	 }
-	
-	return 0;
-}
-/*
- * Check query Slave ID correct or not
- * If wrong, return -1 then throw away it
- */
-int ser_chk_dest(unsigned char *rx_buf, struct frm_para *fpara)
-{
-	unsigned int qslvID;
-	unsigned int rslvID;
-	
-	qslvID = *(rx_buf);
-	rslvID = fpara->slvID; 
-	
-	if(qslvID != rslvID){
-		printf("<Modbus Serial> Slave ID improper, slaveID from query : %d | slaveID from setting : %d\n", qslvID, rslvID);
-		return -1;
-	}
-	
-	return 0;
+	return txlen;
 }
 
-int ser_resp_parser(unsigned char *rx_buf, struct frm_para *mfpara, int rlen)
+int rtu_build_cmd(void *buf, int buflen, const mbus_cmd_info *mbusinfo)
 {
-	int i;
-	int act_byte;
-	unsigned char qfc;
-	unsigned int qact;
-	unsigned int qlen;
-	unsigned int raddr;
-	unsigned char rfc;
-	unsigned int rrlen;
-	unsigned int ract;
-	char *s[EXCPMSGTOTAL] = {
-		"<Modbus Serial Master> Read Coil Status (FC=01) exception !!",
-		"<Modbus Serial Master> Read Input Status (FC=02) exception !!",
-		"<Modbus Serial Master> Read Holding Registers (FC=03) exception !!",
-		"<Modbus Serial Master> Read Input Registers (FC=04) exception !!",
-		"<Modbus Serial Master> Force Single Coil (FC=05) exception !!",
-		"<Modbus Serial Master> Preset Single Register (FC=06) exception !!"
-	};
+	uint32_t txlen;
+	uint32_t msglen;
+	uint16_t *rtu_crc16;
+	union _mbus_hdr *mbus = (union _mbus_hdr *)buf;
+
+	if(buflen < __mbus_len(mbus, info, 0) + sizeof(uint16_t))
+		return MBUS_ERROR_DATALEN;
+
+	msglen = mbus_build_cmd(mbus, buflen - sizeof(uint16_t), mbusinfo);
+
+	rtu_crc16 = __mbus_rtu_crc16(buf, msglen);
+	txlen = msglen + sizeof(uint16_t);
+
+	if(txlen > buflen)
+		return MBUS_ERROR_DATALEN;
+
+	*rtu_crc16 = htobe16(crc_checksum(buf, msglen));
 	
-	qfc = mfpara->fc;
-	qlen = mfpara->len;	
-	rfc = *(rx_buf+1);
-	rrlen = *(rx_buf+2);
-
-	if(qfc ^ rfc){
-		if(rfc > PRESETEXCPSTATUS_EXCP || rfc < READCOILSTATUS_EXCP){   
-			printf("<Modbus Serial Master> Uknow respond function code : %x !!\n", rfc);
-			return -1;
-        }	
-		printf("%s\n", s[rfc-READCOILSTATUS_EXCP]);
-		return -1;
-	}
-
-	if(!(rfc ^ READCOILSTATUS) || !(rfc ^ READINPUTSTATUS)){	// fc = 0x01/0x02, get data len
-		act_byte = carry((int)qlen, 8);
-
-		if(rrlen != act_byte){
-			printf("<Modbus Serial Master> length fault !!\n");
-			return -1;
-		}
-		printf("<Modbus Serial Master> Data :");
-		for(i = 3; i < rlen-2; i++){
-			printf(" %x |", *(rx_buf+i));
-		}
-		printf("\n");
-	}else if(!(rfc ^ READHOLDINGREGS) || !(rfc ^ READINPUTREGS)){	//fc = 0x03/0x04, get data byte
-		if(rrlen != qlen<<1){
-			printf("<Modbus Serial Master> byte fault !!\n");
-			return -1;
-		}
-		printf("<Modbus Serial Master> Data : ");
-		for(i = 3; i < rlen-2; i+=2){
-			printf(" %x%x", *(rx_buf+i), *(rx_buf+i+1));
-			printf("|");
-		}
-		printf("\n");
-	}else if(!(rfc ^ FORCESIGLEREGS)){		//fc = 0x05, get action
-		ract = *(rx_buf+4);
-		raddr = *(rx_buf+2)<<8 | *(rx_buf+3);
-		if(ract == 255){
-			printf("<Modbus Serial Master> addr : %x The status to wirte on (FC:0x04)\n", raddr);
-		}else if(!ract){
-			printf("<Modbus Serial Master> addr : %x The status to wirte off (FC:0x04)\n", raddr);
-		}else{
-			printf("<Modbus Serial Master> Unknow action !!\n");
-			return -1;
-		}
-	}else if(!(rfc ^ PRESETEXCPSTATUS)){	// fc = 0x06, get action
-		qact = mfpara->act;
-		raddr = *(rx_buf+2)<<8 | *(rx_buf+3);
-		ract = *(rx_buf+4)<<8 | *(rx_buf+5);
-		if(qact != ract){
-			printf("<Modbus Serial Master> Action wrong !!\n");
-			return -1;
-		}
-		printf("<Modbus Serial Master> addr : %x Action code = %x\n", raddr, ract);
-	}else{
-		printf("<Modbus Serial Master> Unknow respond function code = %x\n", rfc);
-		return -1;
-	}
-	
-	return 0;
-}
-/*
- * build modbus serial master mode Query
- */
-int ser_build_query(unsigned char *tx_buf, struct frm_para *mfpara)
-{
-	int srclen;
-	unsigned char src[FRMLEN];
-	unsigned int slvID;
-	unsigned int straddr;
-	unsigned int act;
-	unsigned char fc;
-	
-	slvID = mfpara->slvID;
-	straddr = mfpara->straddr;
-	act = mfpara->len;
-	fc = mfpara->fc;
-
-	src[0] = slvID;
-	src[2] = straddr >> 8;
-	src[3] = straddr & 0xff;
-	src[4] = act >> 8;
-	src[5] = act & 0xff;
-	srclen = 6;
-	
-	switch(fc){
-		case READCOILSTATUS:	// 0x01
-			src[1] = READCOILSTATUS;
-			printf("<Modbus Serial Master> build Read Coil Status query\n");
-			break;
-		case READINPUTSTATUS:	// 0x02
-			src[1] = READINPUTSTATUS;
-			printf("<Modbus Serial Master> build Read Input Status query\n");
-			break;
-		case READHOLDINGREGS:	// 0x03
-			src[1] = READHOLDINGREGS;
-			printf("<Modbus Serial Master> build Read Holding Register query\n");
-			break;
-		case READINPUTREGS:		// 0x04
-			src[1] = READINPUTREGS;
-			printf("<Modbus Serial Master> build Read Input Register query\n");
-			break;
-		case FORCESIGLEREGS:	// 0x05
-			src[1] = FORCESIGLEREGS;
-			printf("<Modbus Serial Master> build Force Sigle Coil query\n");
-			break;
-		case PRESETEXCPSTATUS:	// 0x06	
-			src[1] = PRESETEXCPSTATUS;
-			printf("<Modbus Serial Master> build Preset Single Register query\n");
-			break;
-		default:
-			printf("<Modbus Serial Master> Unknow Function Code\n");
-			break;
-	}
-
-	build_rtu_frm(tx_buf, src, srclen);
-	srclen += 2;
-	
-	return srclen;
-}
-/* 
- * build modbus serial respond exception
- */
-int ser_build_resp_excp(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char excp_code)
-{
-	int src_num;
-	unsigned int slvID;
-	unsigned char fc;
-	unsigned char src[FRMLEN];
-	
-	slvID = sfpara->slvID;
-	fc = sfpara->fc;
-
-	src[0] = slvID;
-	src[1] = fc | EXCPTIONCODE;
-	src[2] = excp_code;
-	src_num = 3;
-
-	printf("<Modbus Serial Slave> respond Excption Code\n");
-	build_rtu_frm(tx_buf, src, src_num);
-	src_num += 2;
-
-	return src_num;
+	return txlen;
 }
 
-/* 
- * FC 0x01 Read Coil Status respond / FC 0x02 Read Input Status
- */
-int ser_build_resp_read_status(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char fc)
+int rtu_build_excp(void *buf, int buflen, const mbus_cmd_info *mbusinfo, uint8_t excp_code)
 {
-	int i;
-	int byte;
-	int src_len;
-	unsigned int slvID;
-	unsigned int len;	
-	unsigned char src[FRMLEN];
+	uint32_t txlen;
+	uint32_t msglen;
+	uint16_t *rtu_crc16;
+	union _mbus_hdr *mbus = (union _mbus_hdr *)buf;
+
+	if(buflen < __mbus_len(mbus, excp, 0) + sizeof(uint16_t))
+		return MBUS_ERROR_DATALEN;
+
+	msglen = mbus_build_excp(mbus, buflen - sizeof(uint16_t), mbusinfo, excp_code);
+
+	txlen = msglen + sizeof(uint16_t);
+	rtu_crc16 = __mbus_rtu_crc16(buf, msglen);
+
+	if(txlen > buflen)
+		return MBUS_ERROR_DATALEN;
+
+	*rtu_crc16 = htobe16(crc_checksum(buf, msglen));
 	
-	slvID = sfpara->slvID;
-	len = sfpara->len; 
-	byte = carry(len, 8);
-	src_len = byte + 3;
-
-	src[0] = slvID;	
-	src[1] = fc;
-	src[2] = byte & 0xff;	  
-	for(i = 3; i < src_len; i++){	
-		src[i] = 0;
-	}
-	printf("<Modbus Serial Slave> respond Read %s Status\n", fc==READCOILSTATUS?"Coil":"Input");
-
-	build_rtu_frm(tx_buf, src, src_len);
-	src_len += 2;
-		
-	return src_len;
-} 
-/* 
- * FC 0x03 Read Holding Registers respond / FC 0x04 Read Input Registers respond
- */
-int ser_build_resp_read_regs(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char fc)
-{
-	int i;
-	int byte;
-	int src_len;
-	unsigned int slvID;
-	unsigned int num_regs;
-	unsigned char src[FRMLEN];
-
-	slvID = sfpara->slvID;
-	num_regs = sfpara->len;
-	byte = num_regs * 2;
-	src_len = byte + 3;
-
-	src[0] = slvID;				 
-	src[1] = fc;
-	src[2] = byte & 0xff;
-	for(i = 3; i < src_len; i++){   
-		src[i] = 0;
-	}
-
-	printf("<Modbus Serial Slave> respond Read %s Registers\n", fc==READHOLDINGREGS?"Holding":"Input");
-	
-	build_rtu_frm(tx_buf, src, src_len);
-	src_len += 2;
-	
-	return src_len;
+	return txlen;
 }
-/*
- * FC 0x05 Force Single Coli respond / FC 0x06 Preset Single Register respond
- */
-int ser_build_resp_set_single(unsigned char *tx_buf, struct frm_para *sfpara, unsigned char fc)
-{
-	int src_len;
-	unsigned int slvID;
-	unsigned int straddr;
-	unsigned int act;
-	unsigned char src[FRMLEN];
-	
-	slvID = sfpara->slvID;
-	straddr = sfpara->straddr;
-	act = sfpara->act;
-	
-	/* init data, fill in slave addr & function code ##Start Addr */
-	src[0] = slvID;
-	src[1] = fc;
-	src[2] = straddr >> 8;			// data addr Hi
-	src[3] = straddr;				// data addr Lo
-	src[4] = act >> 8;				// active Hi
-	src[5] = act;					// active Lo
-	src_len = 6;
 
-	printf("<Modbus Serial Slave> respond %s\n", fc==FORCESIGLEREGS?"Force Single Coli":"Preset Single Register");
+int rtu_get_cmdinfo(void *buf, int buflen, mbus_cmd_info *mbusinfo)
+{
+	int ret;
+	uint16_t *rtu_crc16;
+	union _mbus_hdr *mbus = (union _mbus_hdr *)buf;
+
+	if(buflen < __mbus_len(mbus, info, 0) + sizeof(uint16_t))
+		return MBUS_ERROR_DATALEN;
 	
-	build_rtu_frm(tx_buf, src, src_len);
-	src_len += 2;
-	
-	return src_len;
+	ret = mbus_get_cmdinfo(mbus, buflen - sizeof(uint16_t), mbusinfo);
+	if(ret <= 0)
+		return ret;
+
+	rtu_crc16 = __mbus_rtu_crc16(buf, ret);
+
+	if(*rtu_crc16 != htobe16(crc_checksum(buf, ret)))
+		return MBUS_ERROR_FORMATE;
+
+	return (ret + sizeof(uint16_t));
 }
+
+int rtu_get_respinfo(void *buf, int buflen, mbus_resp_info *mbusinfo)
+{
+	int ret;
+	uint16_t *rtu_crc16;
+	union _mbus_hdr *mbus = (union _mbus_hdr *)buf;
+
+	if(buflen < __mbus_len(mbus, info, 0) + sizeof(uint16_t))
+		return MBUS_ERROR_DATALEN;
+
+	ret = mbus_get_respinfo(mbus, buflen - sizeof(uint16_t), mbusinfo);
+	if(ret <= 0) return ret;
+
+	rtu_crc16 = __mbus_rtu_crc16(buf, ret);
+
+	if(*rtu_crc16 != htobe16(crc_checksum(buf, ret)))
+		return MBUS_ERROR_FORMATE;
+
+	return (ret + sizeof(uint16_t));
+}
+
